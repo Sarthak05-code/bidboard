@@ -147,7 +147,9 @@ bidboard/
 │   └── bidboard.sql              ← Full schema + default admin seed
 │
 └── .github/workflows/
-    └── manual-release.yml        ← Manual release with auto-generated changelog
+    |── manual-release.yml        ← Manual release with auto-generated changelog
+    |── php.yml                   ← Main workflows to check syntax and builds
+    └── commit-check.yml          ← Making sure the PR follows the security log
 ```
 
 ---
