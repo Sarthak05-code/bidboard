@@ -7,41 +7,67 @@ require_once "includes/db.php";
 $search = trim($_GET["search"] ?? ""); // keyword search
 $category = trim($_GET["category"] ?? ""); // filter by category
 
-// Build query dynamically based on active filters
-$sql = "SELECT t.*, c.name AS client_name,
-                  (SELECT COUNT(*) FROM bids b WHERE b.task_id = t.id) AS bid_count
-           FROM tasks t
-           JOIN clients c ON t.client_id = c.id
-           WHERE t.status = 'open'"; // only show open tasks publicly
+// --- PAGINATION SETUP ---
+$page = max(1, (int) ($_GET["page"] ?? 1));
+$per_page = 9; // Show 9 tasks per page (ideal for 3-column grid layouts)
+$offset = ($page - 1) * $per_page;
 
-$params = []; // values for prepared statement
-$types = ""; // type string for bind_param
+// Build common WHERE clause conditions
+$where_clauses = ["t.status = 'open'"];
+$params = [];
+$types = "";
 
-// Add keyword search if provided
 if ($search !== "") {
-    $sql .= " AND (t.title LIKE ? OR t.description LIKE ?)";
+    $where_clauses[] = "(t.title LIKE ? OR t.description LIKE ?)";
     $like = "%" . $search . "%";
     $params[] = $like;
     $params[] = $like;
     $types .= "ss";
 }
 
-// Add category filter if provided
 if ($category !== "") {
-    $sql .= " AND t.category = ?";
+    $where_clauses[] = "t.category = ?";
     $params[] = $category;
     $types .= "s";
 }
 
-$sql .= " ORDER BY t.created_at DESC"; // newest tasks first
+$where_sql = implode(" AND ", $where_clauses);
 
-// Execute query
-$stmt = $conn->prepare($sql);
+// 1. Get total count for pagination calculations
+$count_sql = "SELECT COUNT(*) AS total
+              FROM tasks t
+              JOIN clients c ON t.client_id = c.id
+              WHERE {$where_sql}";
+
+$stmt = $conn->prepare($count_sql);
 if ($params) {
-    $stmt->bind_param($types, ...$params); // spread array into bind_param
+    $stmt->bind_param($types, ...$params);
 }
 $stmt->execute();
-$tasks = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); // fetch all as array
+$total_rows = $stmt->get_result()->fetch_assoc()["total"] ?? 0;
+$stmt->close();
+
+$total_pages = max(1, (int) ceil($total_rows / $per_page));
+$page = min($page, $total_pages);
+
+// 2. Fetch paginated open tasks
+$sql = "SELECT t.*, c.name AS client_name,
+               (SELECT COUNT(*) FROM bids b WHERE b.task_id = t.id) AS bid_count
+        FROM tasks t
+        JOIN clients c ON t.client_id = c.id
+        WHERE {$where_sql}
+        ORDER BY t.created_at DESC
+        LIMIT ? OFFSET ?";
+
+$fetch_params = $params;
+$fetch_types = $types . "ii";
+$fetch_params[] = $per_page;
+$fetch_params[] = $offset;
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param($fetch_types, ...$fetch_params);
+$stmt->execute();
+$tasks = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 // Get distinct categories for the filter dropdown
@@ -49,6 +75,19 @@ $cats_result = $conn->query(
     "SELECT DISTINCT category FROM tasks WHERE status = 'open' ORDER BY category",
 );
 $categories = $cats_result->fetch_all(MYSQLI_ASSOC);
+
+// Helper function to maintain filter parameters in pagination links
+function build_pagination_url($page_num, $search, $category)
+{
+    $query = ["page" => $page_num];
+    if ($search !== "") {
+        $query["search"] = $search;
+    }
+    if ($category !== "") {
+        $query["category"] = $category;
+    }
+    return "/bidboard/index.php?" . http_build_query($query);
+}
 
 $page_title = "Browse Tasks";
 $nav_context = "public";
@@ -146,6 +185,50 @@ require_once "includes/header.php";
                     </a>
                 <?php endforeach; ?>
             </div>
+
+            <!-- Pagination UI -->
+            <?php if ($total_pages > 1): ?>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem;">
+                    <span class="text-sm text-muted">
+                        Showing <?= $offset + 1 ?>–<?= min(
+    $offset + $per_page,
+    $total_rows,
+) ?> of <?= $total_rows ?> tasks
+                    </span>
+
+                    <div style="display:flex; gap:0.25rem; align-items:center;">
+                        <?php if ($page > 1): ?>
+                            <a href="<?= build_pagination_url(
+                                $page - 1,
+                                $search,
+                                $category,
+                            ) ?>" class="btn btn-sm btn-ghost">« Prev</a>
+                        <?php endif; ?>
+
+                        <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                            <a href="<?= build_pagination_url(
+                                $i,
+                                $search,
+                                $category,
+                            ) ?>"
+                               class="btn btn-sm <?= $i === $page
+                                   ? "btn-primary"
+                                   : "btn-ghost" ?>">
+                                <?= $i ?>
+                            </a>
+                        <?php endfor; ?>
+
+                        <?php if ($page < $total_pages): ?>
+                            <a href="<?= build_pagination_url(
+                                $page + 1,
+                                $search,
+                                $category,
+                            ) ?>" class="btn btn-sm btn-ghost">Next »</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
         <?php endif; ?>
 
     </div>
