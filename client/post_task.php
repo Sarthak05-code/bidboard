@@ -144,7 +144,7 @@ require_once "../includes/header.php";
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label" for="budget">Budget ($)</label>
+                            <label class="form-label" for="budget">Budget (Rs. )</label>
                             <input
                                 type="number"
                                 id="budget"

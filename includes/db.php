@@ -60,4 +60,30 @@ function is_rate_limited(
     return false;
 }
 
+function is_ip_rate_limited(
+    string $action_key,
+    int $max_attempt = 10,
+    int $window_seconds = 300,
+): bool {
+    $ip = $_SERVER["REMOTE_ADDR"] ?? "unknown";
+    $key = $action_key . "_" . $ip;
+    $now = time();
+
+    if (!isset($_SESSION["ip_rate_limit"][$key])) {
+        $_SESSION["ip_rate_limit"][$key] = [];
+    }
+
+    $_SESSION["ip_rate_limit"][$key] = array_filter(
+        $_SESSION["ip_rate_limit"][$key],
+        fn($timestamp) => $now - $timestamp < $window_seconds,
+    );
+
+    if (count($_SESSION["ip_rate_limit"][$key]) >= $max_attempt) {
+        return true;
+    }
+
+    $_SESSION["ip_rate_limit"][$key][] = $now;
+    return false;
+}
+
 ?>

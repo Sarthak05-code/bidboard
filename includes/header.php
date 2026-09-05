@@ -2,6 +2,9 @@
 // Shared page header — included at the top of every page
 // $page_title should be set before including this file
 // $nav_context should be 'public', 'client', or 'admin'
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-XSS-Protection: 1; mode=block");
 
 $page_title = $page_title ?? "BidBoard";
 $nav_context = $nav_context ?? "public";

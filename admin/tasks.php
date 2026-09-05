@@ -217,7 +217,7 @@ require_once "../includes/header.php";
                                     <td><span class="badge badge-category"><?= htmlspecialchars(
                                         $task["category"],
                                     ) ?></span></td>
-                                    <td class="text-sm" style="color:var(--success);">$<?= number_format(
+                                    <td class="text-sm" style="color:var(--success);">Rs. <?= number_format(
                                         $task["budget"],
                                         2,
                                     ) ?></td>
@@ -281,7 +281,7 @@ require_once "../includes/header.php";
     : "btn-ghost" ?>"><?= $i ?></a>
                             <?php endfor; ?>
 
-                            <?php if ($page < $total_pages): ?>
+                            <?php if ($total_pages > $page): ?>
                                 <?php $query_params_array["page"] =
                                     $page + 1; ?>
                                 <a href="?<?= http_build_query(

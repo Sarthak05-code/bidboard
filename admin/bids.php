@@ -181,7 +181,7 @@ require_once "../includes/header.php";
                                         $bid["client_name"],
                                     ) ?></td>
                                     <td class="text-sm" style="color:var(--success); font-weight:600;">
-                                        $<?= number_format(
+                                        Rs. <?= number_format(
                                             $bid["proposed_price"],
                                             2,
                                         ) ?>

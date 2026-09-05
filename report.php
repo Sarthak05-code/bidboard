@@ -1,5 +1,9 @@
 <?php
-// For bid reports, start client session FIRST before anything else
+// Report a task or bid — public form (task reports) or client-only (bid reports)
+// Start a named public session BEFORE anything else for CSRF tokens
+session_name("bidboard_public");
+session_start();
+
 $type = $_GET["type"] ?? "";
 
 if ($type === "bid") {

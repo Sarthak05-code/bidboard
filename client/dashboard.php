@@ -135,7 +135,7 @@ require_once "../includes/header.php";
                                     <td><span class="badge badge-category"><?= htmlspecialchars(
                                         $task["category"],
                                     ) ?></span></td>
-                                    <td style="color:var(--success); font-weight:600;">$<?= number_format(
+                                    <td style="color:var(--success); font-weight:600;">Rs. <?= number_format(
                                         $task["budget"],
                                         2,
                                     ) ?></td>
