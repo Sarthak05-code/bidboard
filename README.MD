@@ -106,10 +106,10 @@ bidboard/
 ├── setup.bat                     ← Automates first-time db.php setup
 │
 ├── auth/
-│   ├── admin_login.php           ← Admin login
-│   ├── client_login.php          ← Client login
+│   ├── admin_login.php           ← Admin login (rate limited)
+│   ├── client_login.php          ← Client login (rate limited)
 │   ├── client_register.php       ← Client registration
-│   └── logout.php                ← Handles logout for both roles (session-isolated)
+│   └── logout.php                ← Handles logout for both roles (session-isolated, cookie-safe)
 │
 ├── client/
 │   ├── dashboard.php             ← Client overview + task table
@@ -133,11 +133,11 @@ bidboard/
 │   └── update_report_status.php  ← Admin reviews or dismisses a report
 │
 ├── includes/
-│   ├── db.php                    ← MySQLi connection + CSRF token helpers
+│   ├── db.php                    ← MySQLi connection, CSRF helpers, rate limiting helpers
 │   ├── email_helper.php          ← Abstract API email verification helper
 │   ├── auth_admin.php            ← Admin session guard
 │   ├── auth_client.php           ← Client session guard
-│   ├── header.php                ← Shared HTML header + navbar + context bar
+│   ├── header.php                ← Shared HTML header, security headers, navbar + context bar
 │   └── footer.php                ← Shared HTML footer
 │
 ├── css/
@@ -147,9 +147,9 @@ bidboard/
 │   └── bidboard.sql              ← Full schema + default admin seed
 │
 └── .github/workflows/
-    |── manual-release.yml        ← Manual release with auto-generated changelog
-    |── php.yml                   ← Main workflows to check syntax and builds
-    └── commit-check.yml          ← Making sure the PR follows the security log
+    ├── manual-release.yml        ← Manual release with auto-generated changelog
+    ├── php.yml                   ← Main workflow to check syntax and builds
+    └── commit-check.yml          ← Ensures PRs follow commit message conventions
 ```
 
 ---
@@ -168,6 +168,7 @@ bidboard/
 - **Client edit task** — edit title, description, category, budget, and deadline while the task is open
 - **Context bar** — a colored strip below the navbar shows the current role (guest / client / admin)
 - **Pagination** — admin tasks and the public homepage are paginated with filter preservation
+- **Currency display** — all amounts are shown in Rs. (Nepalese Rupees) instead of USD
 
 ### Reporting
 
@@ -179,8 +180,11 @@ bidboard/
 ### Security
 
 - **CSRF protection** — every state-changing form includes a per-session token, verified server-side before processing
-- **Session isolation** — admin and client use separate PHP session names to prevent cross-tab logout
+- **Session isolation** — admin, client, and public/guest pages each use separate, explicitly named PHP sessions to prevent cross-role interference
 - **Session regeneration** — a fresh session ID is issued on every successful login to prevent session fixation
+- **Session cookie hardening** — logout explicitly expires the session cookie for the correct role only, so logging out of one role never affects another active session in the same browser
+- **Rate limiting** — login attempts and bid submissions are capped per session within a rolling time window (e.g. 5 attempts per 60 seconds), with a secondary IP-based limit as a backup layer against session-clearing bypass
+- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, and `X-XSS-Protection` headers are set on every page to harden against MIME sniffing and clickjacking
 - **Password hashing** — bcrypt via `password_hash()` / `password_verify()`
 - **Prepared statements** — all database queries use parameterized queries throughout
 
@@ -188,6 +192,7 @@ bidboard/
 
 - **Server-side validation** on every form field (required fields; defense-in-depth even if JS is bypassed)
 - **Real-time client-side validation** — instant feedback as the user types for name (letters only), email format, password length and match, and numeric fields (budget, bid price)
+- **Negative value prevention** — budget and bid price fields block a leading minus sign at the input level, in addition to the server-side `<= 0` rejection
 - **Email deliverability check** — integrates Abstract API to verify that submitted emails are real and deliverable, not just correctly formatted (applied at client registration, profile email changes, bid submission, and report submission)
 
 ---
@@ -211,6 +216,10 @@ All internal links and redirects use the absolute path `/bidboard/`. If the fold
 
 Abstract API's free tier caps at 100 requests/month. If the quota is exceeded, `is_email_deliverable()` fails open (returns `true`) so the app keeps working, but verification is effectively skipped until the quota resets.
 
+### Rate limiting scope
+
+Rate limiting is session-based with an IP-based backup layer, both tracked in `$_SESSION`. This mitigates casual brute-force or spam abuse from a single browser/session, but is not equivalent to infrastructure-level DDoS protection (e.g. a CDN or reverse proxy), which is outside the scope of a PHP application running on local XAMPP.
+
 ### Dates
 
 The `strtotime()` function can return `false` on malformed dates in edge cases. Deadlines are validated server-side before insert, but if you extend the project with new date fields, wrap date output with a null check.
@@ -219,14 +228,15 @@ The `strtotime()` function can return `false` on malformed dates in edge cases. 
 
 ## Changelog
 
-| Version | Changes                                                                                                   |
-| ------- | --------------------------------------------------------------------------------------------------------- |
-| v1      | Core platform — auth, task posting, bid submission, admin panel                                           |
-| v2      | Duplicate bid prevention, admin search, client edit profile                                               |
-| v3      | Freelancer bid history, client edit task, context bar                                                     |
-| v4      | CSRF protection, session regeneration, real-time + name/email validation, Abstract API email verification |
-| v5      | Reporting system — task reports (public), bid reports (client), admin review panel, session isolation fix |
-| v6      | Pagination on admin tasks + public homepage, CSRF on admin delete, filter preservation, bug fixes         |
+| Version | Changes                                                                                                                                                 |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1      | Core platform — auth, task posting, bid submission, admin panel                                                                                         |
+| v2      | Duplicate bid prevention, admin search, client edit profile                                                                                             |
+| v3      | Freelancer bid history, client edit task, context bar                                                                                                   |
+| v4      | CSRF protection, session regeneration, real-time + name/email validation, Abstract API email verification                                               |
+| v5      | Reporting system — task reports (public), bid reports (client), admin review panel, session isolation fix                                               |
+| v6      | Pagination on admin tasks + public homepage, CSRF on admin delete, filter preservation, bug fixes                                                       |
+| v7      | Rate limiting (session + IP-based), security headers, session cookie logout fix (cross-role isolation), negative value prevention, Rs. currency display |
 
 ---
 
