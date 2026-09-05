@@ -78,7 +78,7 @@ require_once "../includes/header.php";
                     </span>
                 </div>
                 <p class="text-sm text-muted mt-1">
-                    Budget: $<?= number_format(
+                    Budget: Rs. <?= number_format(
                         $task["budget"],
                         2,
                     ) ?> &nbsp;&middot;&nbsp;
@@ -167,7 +167,7 @@ require_once "../includes/header.php";
 
                         <!-- Bid price + date -->
                         <div class="bid-meta" style="margin-top:0.3rem;">
-                            Bid: <strong style="color:var(--success);">$<?= number_format(
+                            Bid: <strong style="color:var(--success);">Rs. <?= number_format(
                                 $bid["proposed_price"],
                                 2,
                             ) ?></strong>
@@ -230,6 +230,6 @@ require_once "../includes/header.php";
 
     </div>
 </div>
-                    
+
 
 <?php require_once "../includes/footer.php"; ?>

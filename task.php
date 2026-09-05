@@ -2,6 +2,11 @@
 // Single task page — shows task details and bid submission form
 // Accessible to anyone (no login required)
 
+// Start a named public session BEFORE including db.php
+// This ensures CSRF tokens work and doesn't interfere with admin/client sessions
+session_name("bidboard_public");
+session_start();
+
 require_once "includes/db.php";
 require_once "includes/email_helper.php";
 
@@ -157,7 +162,7 @@ require_once "includes/header.php";
                                 $task["category"],
                             ) ?></span>
                             <span class="text-sm" style="color:var(--success); font-weight:600;">
-                                Budget: $<?= number_format(
+                                Budget: Rs. <?= number_format(
                                     $task["budget"],
                                     2,
                                 ) ?>
@@ -198,7 +203,7 @@ require_once "includes/header.php";
                                         $bid["freelancer_name"],
                                     ) ?></span>
                                     <span class="text-sm text-muted" style="margin-left:0.5rem;">
-                                        $<?= number_format(
+                                        Rs. <?= number_format(
                                             $bid["proposed_price"],
                                             2,
                                         ) ?>
@@ -276,7 +281,7 @@ require_once "includes/header.php";
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="form-label" for="proposed_price">Your bid ($)</label>
+                                        <label class="form-label" for="proposed_price">Your bid (Rs. )</label>
                                         <input
                                             type="number"
                                             id="proposed_price"
@@ -289,7 +294,7 @@ require_once "includes/header.php";
                                                 $_POST["proposed_price"] ?? "",
                                             ) ?>"
                                             required>
-                                        <p class="form-hint">Client budget: $<?= number_format(
+                                        <p class="form-hint">Client budget: Rs. <?= number_format(
                                             $task["budget"],
                                             2,
                                         ) ?></p>

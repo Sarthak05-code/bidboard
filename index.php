@@ -162,7 +162,7 @@ require_once "includes/header.php";
 
                             <!-- Budget display -->
                             <span class="text-sm" style="color:var(--success); font-weight:600;">
-                                $<?= number_format($task["budget"], 2) ?>
+                                Rs. <?= number_format($task["budget"], 2) ?>
                             </span>
 
                             <!-- Bid count -->
