@@ -21,7 +21,7 @@ jobs:
           while IFS= read -r msg; do
             [ -z "$msg" ] && continue
             
-            if ! echo "$msg" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?: .+"; then
+            if ! echo "$msg" | grep -qiE "^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?\s*:\S*.+"; then
               echo "❌ Invalid: $msg"
               INVALID=$((INVALID + 1))
             fi

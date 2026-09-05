@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., 0.1.0, 1.2.3)'
+        description: "Version tag (e.g., 0.1.0, 1.2.3)"
         required: true
         type: string
       prerelease:
-        description: 'Mark as pre-release?'
+        description: "Mark as pre-release?"
         required: false
         type: boolean
         default: false
@@ -30,7 +30,7 @@ jobs:
         id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
+
           if [ -z "$PREV_TAG" ]; then
             echo "🆕 First release — including all commits"
             COMMIT_RANGE=""
@@ -38,9 +38,9 @@ jobs:
             echo "📌 Previous tag: $PREV_TAG"
             COMMIT_RANGE="${PREV_TAG}..HEAD"
           fi
-          
+
           ALL_COMMITS=$(git log $COMMIT_RANGE --pretty=format:"%s|%an" --no-merges --reverse)
-          
+
           FEATURES=""
           FIXES=""
           DOCS=""
@@ -49,25 +49,25 @@ jobs:
           CHORES=""
           BREAKING=""
           OTHERS=""
-          
+
           while IFS='|' read -r msg author; do
             [ -z "$msg" ] && continue
             clean_msg="- ${msg} by **${author}**"
-            
-            # Conventional commit prefixes
-            if echo "$msg" | grep -qiE "^feat(\(.+\))?!?:"; then
+
+            # Conventional commit prefixes (colon may have optional spaces before/after)
+            if echo "$msg" | grep -qiE "^feat(\(.+\))?!?\s*:\s*"; then
               FEATURES="${FEATURES}${clean_msg}"$'\n'
-            elif echo "$msg" | grep -qiE "^fix(\(.+\))?!?:"; then
+            elif echo "$msg" | grep -qiE "^fix(\(.+\))?!?\s*:\s*"; then
               FIXES="${FIXES}${clean_msg}"$'\n'
-            elif echo "$msg" | grep -qiE "^docs(\(.+\))?!?:"; then
+            elif echo "$msg" | grep -qiE "^docs(\(.+\))?!?\s*:\s*"; then
               DOCS="${DOCS}${clean_msg}"$'\n'
-            elif echo "$msg" | grep -qiE "^refactor(\(.+\))?!?:"; then
+            elif echo "$msg" | grep -qiE "^refactor(\(.+\))?!?\s*:\s*"; then
               REFACTORS="${REFACTORS}${clean_msg}"$'\n'
-            elif echo "$msg" | grep -qiE "^perf(\(.+\))?!?:"; then
+            elif echo "$msg" | grep -qiE "^perf(\(.+\))?!?\s*:\s*"; then
               PERFS="${PERFS}${clean_msg}"$'\n'
-            elif echo "$msg" | grep -qiE "^chore(\(.+\))?!?:|^ci(\(.+\))?!?:"; then
+            elif echo "$msg" | grep -qiE "^chore(\(.+\))?!?\s*:\s*|^ci(\(.+\))?!?\s*:\s*"; then
               CHORES="${CHORES}${clean_msg}"$'\n'
-            
+
             # Keyword fallback for non-conventional commits
             elif echo "$msg" | grep -qiE "add|new|implement|create|introduce"; then
               FEATURES="${FEATURES}${clean_msg}"$'\n'
@@ -89,10 +89,10 @@ jobs:
               OTHERS="${OTHERS}${clean_msg}"$'\n'
             fi
           done <<< "$ALL_COMMITS"
-          
+
           BODY="## 🎉 What's New in v${{ github.event.inputs.version }}"
           BODY="${BODY}"$'\n\n'
-          
+
           [ -n "$FEATURES" ] && BODY="${BODY}### ✨ Features"$'\n'"${FEATURES}"$'\n'
           [ -n "$FIXES" ] && BODY="${BODY}### 🐛 Bug Fixes"$'\n'"${FIXES}"$'\n'
           [ -n "$BREAKING" ] && BODY="${BODY}### ⚠️ Breaking Changes"$'\n'"${BREAKING}"$'\n'
@@ -101,11 +101,11 @@ jobs:
           [ -n "$DOCS" ] && BODY="${BODY}### 📚 Documentation"$'\n'"${DOCS}"$'\n'
           [ -n "$CHORES" ] && BODY="${BODY}### 🧹 Chores"$'\n'"${CHORES}"$'\n'
           [ -n "$OTHERS" ] && BODY="${BODY}### 📝 Other Changes"$'\n'"${OTHERS}"$'\n'
-          
+
           TOTAL=$(echo "$ALL_COMMITS" | grep -c "^" || echo "0")
           BODY="${BODY}---"$'\n'
           BODY="${BODY}**Total commits:** ${TOTAL}"
-          
+
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -127,4 +127,3 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
