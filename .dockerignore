@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Docker
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile
+.dockerignore
+
+# Dependency/vendor folders (if using Composer)
+vendor/
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# XAMPP artifacts (if any leaked in)
+xampp/
+
+# Local uploads / cache that shouldn't ship in the image
+uploads/*
+!uploads/.gitkeep
+cache/*
+!cache/.gitkeep
+
+# Backups / dumps
+*.sql
+*.sql.gz
+*.bak
+
+# Tests
+tests/
+phpunit.xml
