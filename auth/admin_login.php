@@ -20,33 +20,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
         die("Invalid CSRF token. Please go back and try again.");
     }
-    $username = trim($_POST["username"] ?? ""); // get submitted username
-    // remove trim in password , as user may intentionally want a password with space.
-    $password = $_POST["password"] ?? ""; // get submitted password
 
-    if ($username === "" || $password === "") {
-        $error = "Please fill in both fields.";
+    if (
+        is_rate_limited("admin_login", 5, 60) ||
+        is_ip_rate_limited("admin_login", 10, 300)
+    ) {
+        $error = "Too many login attempt, Please wait a miniute and try again";
     } else {
-        // Look up admin by username
-        $stmt = $conn->prepare(
-            "SELECT id, username, password FROM admins WHERE username = ?",
-        );
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $admin = $result->fetch_assoc();
-        $stmt->close();
+        $username = trim($_POST["username"] ?? ""); // get submitted username
+        // remove trim in password , as user may intentionally want a password with space.
+        $password = $_POST["password"] ?? ""; // get submitted password
 
-        // Verify password hash
-        if ($admin && password_verify($password, $admin["password"])) {
-            session_regenerate_id(true); // added a fresh session id after login
-            // Store admin info in session
-            $_SESSION["admin_id"] = $admin["id"];
-            $_SESSION["admin_name"] = $admin["username"];
-            header("Location: /bidboard/admin/dashboard.php");
-            exit();
+        if ($username === "" || $password === "") {
+            $error = "Please fill in both fields.";
         } else {
-            $error = "Invalid username or password.";
+            // Look up admin by username
+            $stmt = $conn->prepare(
+                "SELECT id, username, password FROM admins WHERE username = ?",
+            );
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $admin = $result->fetch_assoc();
+            $stmt->close();
+
+            // Verify password hash
+            if ($admin && password_verify($password, $admin["password"])) {
+                unset($_SESSION["rate_limit"]["admin_login"]);
+                session_regenerate_id(true); // added a fresh session id after login
+                // Store admin info in session
+                $_SESSION["admin_id"] = $admin["id"];
+                $_SESSION["admin_name"] = $admin["username"];
+                header("Location: /bidboard/admin/dashboard.php");
+                exit();
+            } else {
+                $error = "Invalid username or password.";
+            }
         }
     }
 }

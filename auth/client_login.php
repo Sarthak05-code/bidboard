@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
         die("Invalid CSRF token. Please go back and try again.");
     }
-    if (is_rate_limited("client_login", 5, 60)) {
+    if (is_rate_limited("client_login", 5, 60) || is_ip_rate_limited("client_login" , 10 , 300)) {
         $error = "Too many login attempt. Try again later";
     } else {
         $email = trim($_POST["email"] ?? "");
