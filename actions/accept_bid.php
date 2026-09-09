@@ -15,6 +15,7 @@ if (!isset($_SESSION["client_id"])) {
 }
 
 require_once "../includes/db.php";
+require_once "../includes/mailer.php";
 
 // Verify CSRF token before processing
 if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
@@ -92,6 +93,30 @@ $progress = $conn->prepare(
 $progress->bind_param("i", $task_id);
 $progress->execute();
 $progress->close();
+
+// Notify the accepted freelancer
+$bid_info = $conn->prepare(
+    "SELECT freelancer_name, freelancer_email FROM bids WHERE id = ?",
+);
+$bid_info->bind_param("i", $bid_id);
+$bid_info->execute();
+$bid_data = $bid_info->get_result()->fetch_assoc();
+$bid_info->close();
+
+$task_info = $conn->prepare("SELECT title FROM tasks WHERE id = ?");
+$task_info->bind_param("i", $task_id);
+$task_info->execute();
+$task_data = $task_info->get_result()->fetch_assoc();
+$task_info->close();
+
+if ($bid_data && $task_data) {
+    send_bid_notification(
+        $bid_data["freelancer_email"],
+        $bid_data["freelancer_name"],
+        $task_data["title"],
+        "accepted",
+    );
+}
 
 // Flash success message for the bids page
 $_SESSION["flash"] = "Bid accepted. Task is now in progress.";
