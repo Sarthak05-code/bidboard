@@ -1,6 +1,6 @@
 # BidBoard — Freelance Task Bidding Platform
 
-A freelance task marketplace built with plain PHP, HTML, CSS, and vanilla JS. No frameworks, no Composer, and no npm required for core functionality. Runs on XAMPP.
+A freelance task marketplace built with plain PHP, HTML, CSS, and vanilla JS. No framework is used for the core application — Composer is used only for a small number of well-established packages (see [Tech Stack](#tech-stack)). Runs on XAMPP.
 
 Clients post tasks, freelancers bid on them without needing an account, and clients accept the best bid. Admins oversee the entire platform.
 
@@ -8,23 +8,24 @@ Clients post tasks, freelancers bid on them without needing an account, and clie
 
 ## Tech Stack
 
-| Layer              | Technology                      |
-| ------------------ | ------------------------------- |
-| Backend            | PHP (vanilla, no frameworks)    |
-| Database           | MySQL via phpMyAdmin            |
-| Frontend           | HTML, CSS, Vanilla JS           |
-| Server             | Apache + MySQL (XAMPP)          |
-| Email Verification | Abstract API (Email Reputation) |
+| Layer               | Technology                            |
+| ------------------- | ------------------------------------- |
+| Backend             | PHP (vanilla, no frameworks)          |
+| Database            | MySQL via phpMyAdmin                  |
+| Frontend            | HTML, CSS, Vanilla JS                 |
+| Server              | Apache + MySQL (XAMPP)                |
+| Email Verification  | Abstract API (Email Reputation)       |
+| Email Notifications | PHPMailer (via Composer) + Gmail SMTP |
 
 ---
 
 ## Roles
 
-| Role       | Access                                                                     |
-| ---------- | -------------------------------------------------------------------------- |
-| Admin      | View/delete all tasks and bids, manage clients, review reports             |
-| Client     | Register, post tasks, view bids, accept/reject, mark complete, report bids |
-| Freelancer | Browse tasks, submit bids, check bid status by email, report tasks         |
+| Role       | Access                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| Admin      | View/delete all tasks and bids, manage clients, review reports                                                 |
+| Client     | Register, post tasks, view bids, accept/reject, mark complete, report bids                                     |
+| Freelancer | Browse tasks, submit bids, check bid status by email, report tasks, receive email notifications on bid outcome |
 
 ---
 
@@ -34,37 +35,42 @@ Clients post tasks, freelancers bid on them without needing an account, and clie
 
 - XAMPP (Apache + MySQL)
 - PHP 7.4 or higher
+- [Composer](https://getcomposer.org/download/) — required for PHPMailer (email notifications)
 - _(Optional)_ A free Abstract API key for email verification — see [Configuration](#configuration)
+- _(Optional)_ A Gmail account with an App Password — see [Configuration](#configuration)
 
 ### Setup
 
 1. **Clone or download** the repository into your XAMPP `htdocs` folder:
 
-   ```
+```
    C:\xampp\htdocs\bidboard\
-   ```
+```
 
-   > The folder **must** be named `bidboard` — all internal paths depend on it.
+> The folder **must** be named `bidboard` — all internal paths depend on it.
 
 2. **Start Apache and MySQL** in the XAMPP Control Panel.
-
 3. **Open phpMyAdmin** at [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
-
 4. **Create a new database** named `bidboard`.
-
 5. **Import** `sql/bidboard.sql` into that database.
-
 6. **Copy** `includes/db.sample.php` to `includes/db.php`. The default XAMPP credentials are already set, so no changes are needed unless your MySQL uses a different password.
-
 7. **Copy** `includes/email_helper.sample.php` to `includes/email_helper.php` and add your free Abstract API key (see [Configuration](#configuration)). If the key is left blank, email verification is skipped automatically and the app still works.
+8. **Install PHP dependencies** with Composer:
 
-8. **Open the app** at:
+```
+   composer install
+```
 
-   ```
-   http://localhost/bidboard/
-   ```
+This installs PHPMailer into a local `vendor/` folder (gitignored).
 
-> **Tip:** Alternatively, run `setup.bat` after step 2 — it automates step 6 for you and prints the remaining steps.
+9. **Copy** `includes/mailer.sample.php` to `includes/mailer.php` and add your Gmail address and App Password (see [Configuration](#configuration)). If left blank, email sending will fail silently and the accept/reject flow continues to work normally without notifications.
+10. **Open the app** at:
+
+```
+    http://localhost/bidboard/
+```
+
+> **Tip:** Run `setup.bat` after step 2 — it automates step 6 for you and prints the remaining steps.
 
 ### Default Admin Credentials
 
@@ -87,11 +93,26 @@ BidBoard optionally verifies that submitted emails are real and deliverable — 
 2. Subscribe to the **Email Reputation** product (free tier: 100 requests/month).
 3. Copy your API key into `includes/email_helper.php`:
 
-   ```php
+```php
    define("ABSTRACT_API_KEY", "your_key_here");
-   ```
+```
 
 If no key is set, the check fails open (always passes), so the app remains fully functional without it.
+
+### Email Notifications (PHPMailer + Gmail SMTP)
+
+BidBoard optionally sends an email to the freelancer whenever their bid is **accepted** or **rejected**, using PHPMailer over Gmail's SMTP server.
+
+1. Enable **2-Step Verification** on the Gmail account you want to send from.
+2. Generate an **App Password** for "Mail" under Google Account → Security → App Passwords.
+3. Copy your credentials into `includes/mailer.php`:
+
+```php
+   define('SMTP_EMAIL', 'your_gmail@gmail.com');
+   define('SMTP_APP_PASSWORD', 'your16charapppassword'); // no spaces
+```
+
+If these are left blank or sending fails for any reason, the error is logged server-side and the accept/reject action continues normally — a failed email never blocks the core bid workflow.
 
 ---
 
@@ -104,6 +125,8 @@ bidboard/
 ├── bid_status.php                ← Freelancer bid history lookup by email
 ├── report.php                    ← Shared report form for tasks (public) and bids (client-only)
 ├── setup.bat                     ← Automates first-time db.php setup
+├── AGENTS.md                     ← Rules for AI coding agents (Codex, Claude Code, etc.) working in this repo
+├── composer.json / composer.lock ← PHPMailer dependency manifest
 │
 ├── auth/
 │   ├── admin_login.php           ← Admin login (rate limited)
@@ -126,8 +149,8 @@ bidboard/
 │   └── reports.php               ← Review and manage task/bid reports
 │
 ├── actions/
-│   ├── accept_bid.php            ← Accepts a bid, rejects all others, sets task in_progress
-│   ├── reject_bid.php            ← Rejects a single bid
+│   ├── accept_bid.php            ← Accepts a bid, rejects all others, sets task in_progress, emails the accepted freelancer
+│   ├── reject_bid.php            ← Rejects a single bid, emails the rejected freelancer
 │   ├── update_task_status.php    ← Marks task as completed
 │   ├── delete_task.php           ← Deletes an open task
 │   └── update_report_status.php  ← Admin reviews or dismisses a report
@@ -135,6 +158,7 @@ bidboard/
 ├── includes/
 │   ├── db.php                    ← MySQLi connection, CSRF helpers, rate limiting helpers
 │   ├── email_helper.php          ← Abstract API email verification helper
+│   ├── mailer.php                ← PHPMailer wrapper for bid accepted/rejected notifications
 │   ├── auth_admin.php            ← Admin session guard
 │   ├── auth_client.php           ← Client session guard
 │   ├── header.php                ← Shared HTML header, security headers, navbar + context bar
@@ -145,6 +169,8 @@ bidboard/
 │
 ├── sql/
 │   └── bidboard.sql              ← Full schema + default admin seed
+│
+├── vendor/                       ← Composer packages (PHPMailer) — gitignored, generated by `composer install`
 │
 └── .github/workflows/
     ├── manual-release.yml        ← Manual release with auto-generated changelog
@@ -169,6 +195,7 @@ bidboard/
 - **Context bar** — a colored strip below the navbar shows the current role (guest / client / admin)
 - **Pagination** — admin tasks and the public homepage are paginated with filter preservation
 - **Currency display** — all amounts are shown in Rs. (Nepalese Rupees) instead of USD
+- **Email notifications** — freelancers receive an email via PHPMailer/Gmail SMTP when their bid is accepted or rejected
 
 ### Reporting
 
@@ -183,7 +210,7 @@ bidboard/
 - **Session isolation** — admin, client, and public/guest pages each use separate, explicitly named PHP sessions to prevent cross-role interference
 - **Session regeneration** — a fresh session ID is issued on every successful login to prevent session fixation
 - **Session cookie hardening** — logout explicitly expires the session cookie for the correct role only, so logging out of one role never affects another active session in the same browser
-- **Rate limiting** — login attempts and bid submissions are capped per session within a rolling time window (e.g. 5 attempts per 60 seconds), with a secondary IP-based limit as a backup layer against session-clearing bypass
+- **Rate limiting** — login attempts and bid submissions are capped per session within a rolling time window (e.g. 5 attempts per 60 seconds), with a secondary IP-based limit as a backup layer against session-clearing bypass; the counter resets on successful login
 - **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, and `X-XSS-Protection` headers are set on every page to harden against MIME sniffing and clickjacking
 - **Password hashing** — bcrypt via `password_hash()` / `password_verify()`
 - **Prepared statements** — all database queries use parameterized queries throughout
@@ -194,6 +221,12 @@ bidboard/
 - **Real-time client-side validation** — instant feedback as the user types for name (letters only), email format, password length and match, and numeric fields (budget, bid price)
 - **Negative value prevention** — budget and bid price fields block a leading minus sign at the input level, in addition to the server-side `<= 0` rejection
 - **Email deliverability check** — integrates Abstract API to verify that submitted emails are real and deliverable, not just correctly formatted (applied at client registration, profile email changes, bid submission, and report submission)
+
+### Developer Tooling
+
+- **AGENTS.md** — a strict ruleset read by AI coding agents (Codex, Claude Code, etc.) to keep any AI-assisted contributions aligned with the project's plain-PHP philosophy, approved dependency list, and security patterns
+- **Conventional commits** — enforced on pull requests via a GitHub Actions workflow
+- **Auto-generated release notes** — a manual release workflow tags a version and builds categorized changelog notes from commit history
 
 ---
 
@@ -216,6 +249,14 @@ All internal links and redirects use the absolute path `/bidboard/`. If the fold
 
 Abstract API's free tier caps at 100 requests/month. If the quota is exceeded, `is_email_deliverable()` fails open (returns `true`) so the app keeps working, but verification is effectively skipped until the quota resets.
 
+### Email notification scope
+
+`accept_bid.php` only emails the freelancer whose bid was explicitly accepted — it does not currently loop through and notify the other freelancers whose bids were auto-rejected by the same cascade. Those freelancers can still check their status manually via `bid_status.php`.
+
+### Gmail sending limits
+
+A regular Gmail account is capped at roughly 500 sent emails per day. This is far more than sufficient for a local academic demo, but would need a transactional email service (e.g. SendGrid, Mailgun) if the project were ever deployed at real scale.
+
 ### Rate limiting scope
 
 Rate limiting is session-based with an IP-based backup layer, both tracked in `$_SESSION`. This mitigates casual brute-force or spam abuse from a single browser/session, but is not equivalent to infrastructure-level DDoS protection (e.g. a CDN or reverse proxy), which is outside the scope of a PHP application running on local XAMPP.
@@ -237,6 +278,7 @@ The `strtotime()` function can return `false` on malformed dates in edge cases. 
 | v5      | Reporting system — task reports (public), bid reports (client), admin review panel, session isolation fix                                               |
 | v6      | Pagination on admin tasks + public homepage, CSRF on admin delete, filter preservation, bug fixes                                                       |
 | v7      | Rate limiting (session + IP-based), security headers, session cookie logout fix (cross-role isolation), negative value prevention, Rs. currency display |
+| v8      | PHPMailer email notifications on bid accept/reject (first Composer dependency), AGENTS.md guardrails for AI-assisted development                        |
 
 ---
 
