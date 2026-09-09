@@ -1,50 +1,42 @@
-# Git
-.git
-.gitignore
-
-# Docker
-docker-compose.yml
-docker-compose.override.yml
-Dockerfile
-.dockerignore
-
-# Dependency/vendor folders (if using Composer)
-vendor/
-node_modules/
-
-# Environment / secrets
-.env
-.env.*
-*.env
-
-# IDE / editor
+# Version control and local tooling
+.git/
+.github/
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS junk
-.DS_Store
-Thumbs.db
+# Dependencies are installed in the Docker build stage
+vendor/
+node_modules/
 
-# Logs
-*.log
-logs/
+# Local configuration and secrets
+.env
+.env.*
+*.env
 
-# XAMPP artifacts (if any leaked in)
+# Local runtime data and machine-specific files
 xampp/
-
-# Local uploads / cache that shouldn't ship in the image
 uploads/*
 !uploads/.gitkeep
 cache/*
 !cache/.gitkeep
+*.log
+logs/
+.DS_Store
+Thumbs.db
 
-# Backups / dumps
+# Development-only files
+docker-compose.yml
+docker-compose.override.yml
+setup.bat
+tests/
+phpunit.xml
 *.sql
 *.sql.gz
 *.bak
-
-# Tests
-tests/
-phpunit.xml
+*.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.MD
+LICENSE
+SECURITY.md
