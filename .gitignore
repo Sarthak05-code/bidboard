@@ -1,6 +1,7 @@
 # Database config — don't expose credentials
 
 includes/email_helper.php
+includes/mailer.php
 
 # Keep a sample so others know what db.php should look like
 # (rename db.php to db.sample.php and push that instead)
@@ -15,6 +16,7 @@ desktop.ini
 .idea/
 *.sublime-project
 *.sublime-workspace
+/vendor/
 
 # XAMPP logs that sometimes end up in project folders
 *.log

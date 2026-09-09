@@ -10,6 +10,7 @@ if (!isset($_SESSION["client_id"])) {
 }
 
 require_once "../includes/db.php";
+require_once "../includes/mailer.php";
 if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
     die("Invalid CSRF token. Please go back and try again.");
 }
@@ -68,6 +69,29 @@ $stmt = $conn->prepare(
 $stmt->bind_param("ii", $bid_id, $task_id);
 $stmt->execute();
 $stmt->close();
+
+$bid_info = $conn->prepare(
+    "SELECT freelancer_name, freelancer_email FROM bids WHERE id = ?",
+);
+$bid_info->bind_param("i", $bid_id);
+$bid_info->execute();
+$bid_data = $bid_info->get_result()->fetch_assoc();
+$bid_info->close();
+
+$task_info = $conn->prepare("SELECT title FROM tasks WHERE id = ?");
+$task_info->bind_param("i", $task_id);
+$task_info->execute();
+$task_data = $task_info->get_result()->fetch_assoc();
+$task_info->close();
+
+if ($bid_data && $task_data) {
+    send_bid_notification(
+        $bid_data["freelancer_email"],
+        $bid_data["freelancer_name"],
+        $task_data["title"],
+        "rejected",
+    );
+}
 
 $_SESSION["flash"] = "Bid rejected.";
 
