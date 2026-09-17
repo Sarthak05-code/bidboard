@@ -52,12 +52,12 @@ require_once "../includes/header.php";
 
 <div class="page-wrap">
     <div class="container">
-
+hello
         <!-- Page header with post button -->
         <div class="flex items-center justify-between mb-2">
             <div class="page-header" style="margin-bottom:0;">
                 <h1>Dashboard</h1>
-                <p>Welcome back, <?= htmlspecialchars(
+                <p>Hello, <?= htmlspecialchars(
                     $_SESSION["client_name"],
                 ) ?></p>
             </div>
