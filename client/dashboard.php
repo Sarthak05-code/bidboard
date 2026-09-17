@@ -52,7 +52,6 @@ require_once "../includes/header.php";
 
 <div class="page-wrap">
     <div class="container">
-hello
         <!-- Page header with post button -->
         <div class="flex items-center justify-between mb-2">
             <div class="page-header" style="margin-bottom:0;">
