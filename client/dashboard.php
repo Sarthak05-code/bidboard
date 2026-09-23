@@ -56,9 +56,7 @@ require_once "../includes/header.php";
         <div class="flex items-center justify-between mb-2">
             <div class="page-header" style="margin-bottom:0;">
                 <h1>Dashboard</h1>
-                <p>Hello, <?= htmlspecialchars(
-                    $_SESSION["client_name"],
-                ) ?></p>
+                <p>Hello, <?= htmlspecialchars($_SESSION["client_name"]) ?></p>
             </div>
             <a href="/bidboard/client/post_task.php" class="btn btn-primary">+ Post a task</a>
         </div>
