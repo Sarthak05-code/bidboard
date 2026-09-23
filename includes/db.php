@@ -1,3 +1,4 @@
+
 <?php
 define("DB_HOST", getenv("DB_HOST") ?: "127.0.0.1");
 define("DB_USER", getenv("DB_USER") ?: "root");
@@ -18,20 +19,58 @@ if ($conn->connect_error) {
 
 $conn->set_charset("utf8mb4");
 
+/**
+ * Used in:
+ * - auth/admin_login.php
+ * - auth/client_login.php
+ * - auth/client_register.php
+ * - client/post_task.php
+ * - client/edit_task.php
+ * - client/edit_profile.php
+ * - task.php
+ * - client/dashboard.php (Mark done, Delete forms)
+ * - client/task_bids.php (Accept, Reject, Mark as completed forms)
+ * - admin/tasks.php (Delete form)
+ * - admin/bids.php (Delete form)
+ * - admin/clients.php (Activate/Deactivate form)
+ */
 function generate_csrf_token()
 {
     if (empty($_SESSION["csrf_token"])) {
         $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
     }
+
     return $_SESSION["csrf_token"];
 }
 
+/**
+ * Used in:
+ * - auth/admin_login.php
+ * - auth/client_login.php
+ * - auth/client_register.php
+ * - client/post_task.php
+ * - client/edit_task.php
+ * - client/edit_profile.php
+ * - task.php
+ * - actions/accept_bid.php
+ * - actions/reject_bid.php
+ * - actions/update_task_status.php
+ * - actions/delete_task.php
+ * - admin/tasks.php (Delete handler)
+ * - admin/bids.php (Delete handler)
+ * - admin/clients.php (Toggle handler)
+ */
 function verify_csrf_token($token)
 {
     return isset($_SESSION["csrf_token"]) &&
         hash_equals($_SESSION["csrf_token"], $token ?? "");
 }
 
+/**
+ * Used in:
+ * - auth/admin_login.php
+ * - auth/client_login.php
+ */
 function is_rate_limited(
     string $action_key,
     int $max_attempt = 5,
@@ -49,12 +88,19 @@ function is_rate_limited(
     );
 
     if (count($_SESSION["rate_limit"][$action_key]) >= $max_attempt) {
-        return true; // rate limited
+        return true; // Rate limited
     }
+
     $_SESSION["rate_limit"][$action_key][] = $now;
+
     return false;
 }
 
+/**
+ * Used in:
+ * - auth/admin_login.php
+ * - auth/client_login.php
+ */
 function is_ip_rate_limited(
     string $action_key,
     int $max_attempt = 10,
@@ -78,7 +124,9 @@ function is_ip_rate_limited(
     }
 
     $_SESSION["ip_rate_limit"][$key][] = $now;
+
     return false;
 }
+
 
 ?>

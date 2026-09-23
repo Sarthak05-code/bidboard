@@ -7,6 +7,11 @@ use PHPMailer\PHPMailer\Exception;
 define("SMTP_EMAIL", "your_actual_gmail@gmail.com");
 define("SMTP_APP_PASSWORD", "your_16_char_app_password");
 
+/**
+ * Used in:
+ * - actions/accept_bid.php
+ * - actions/reject_bid.php
+ */
 function send_bid_notification(
     string $to_email,
     string $to_name,
