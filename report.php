@@ -1,15 +1,16 @@
 <?php
 // Report a task or bid — public form (task reports) or client-only (bid reports)
-// Start a named public session BEFORE anything else for CSRF tokens
-session_name("bidboard_public");
-session_start();
 
 $type = $_GET["type"] ?? "";
 
 if ($type === "bid") {
+    // For bid reports, use the CLIENT session (auth_client.php handles this)
     require_once "includes/auth_client.php";
     require_once "includes/db.php";
 } else {
+    // For task reports, use the PUBLIC session
+    session_name("bidboard_public");
+    session_start();
     require_once "includes/db.php";
 }
 
