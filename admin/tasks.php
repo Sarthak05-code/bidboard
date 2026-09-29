@@ -48,7 +48,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_task_id"])) {
 
 // Pagination configuration
 $per_page = 10;
-$offset = ($page - 1) * $per_page;
 
 $allowed_statuses = ["open", "in_progress", "completed"];
 
@@ -85,6 +84,7 @@ $count_stmt->close();
 
 $total_pages = max(1, ceil($total_rows / $per_page));
 $page = min($page, $total_pages);
+$offset = ($page - 1) * $per_page;
 
 // 2. Fetch paginated records
 $sql = "SELECT t.*, c.name AS client_name,

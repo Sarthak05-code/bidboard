@@ -10,7 +10,6 @@ $category = trim($_GET["category"] ?? ""); // filter by category
 // --- PAGINATION SETUP ---
 $page = max(1, (int) ($_GET["page"] ?? 1));
 $per_page = 9; // Show 9 tasks per page (ideal for 3-column grid layouts)
-$offset = ($page - 1) * $per_page;
 
 // Build common WHERE clause conditions
 $where_clauses = ["t.status = 'open'"];
@@ -49,6 +48,7 @@ $stmt->close();
 
 $total_pages = max(1, (int) ceil($total_rows / $per_page));
 $page = min($page, $total_pages);
+$offset = ($page - 1) * $per_page;
 
 // 2. Fetch paginated open tasks
 $sql = "SELECT t.*, c.name AS client_name,
@@ -69,6 +69,33 @@ $stmt->bind_param($fetch_types, ...$fetch_params);
 $stmt->execute();
 $tasks = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+// AJAX requests receive data only; normal requests continue to render the page.
+// The normal form remains usable when JavaScript is unavailable.
+if (($_GET["ajax"] ?? "") === "1") {
+    header("Content-Type: application/json; charset=utf-8");
+
+    $ajax_tasks = array_map(function ($task) {
+        return [
+            "id" => (int) $task["id"],
+            "title" => $task["title"],
+            "description" => $task["description"],
+            "category" => $task["category"],
+            "budget" => (float) $task["budget"],
+            "bid_count" => (int) $task["bid_count"],
+            "deadline" => date("M j", strtotime($task["deadline"])),
+        ];
+    }, $tasks);
+
+    echo json_encode([
+        "tasks" => $ajax_tasks,
+        "total" => (int) $total_rows,
+        "page" => $page,
+        "per_page" => $per_page,
+        "total_pages" => $total_pages,
+    ]);
+    exit();
+}
 
 // Get distinct categories for the filter dropdown
 $cats_result = $conn->query(
@@ -104,10 +131,11 @@ require_once "includes/header.php";
         </div>
 
         <!-- Search and filter bar -->
-        <form method="GET" action="" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+        <form id="task-filter-form" method="GET" action="" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
             <!-- Keyword search input -->
             <input
                 type="text"
+                id="task-search"
                 name="search"
                 class="form-control"
                 placeholder="Search tasks..."
@@ -115,7 +143,7 @@ require_once "includes/header.php";
                 style="flex:1; min-width:200px;">
 
             <!-- Category dropdown filter -->
-            <select name="category" class="form-control" style="width:200px;">
+            <select id="task-category" name="category" class="form-control" style="width:200px;">
                 <option value="">All categories</option>
                 <?php foreach ($categories as $cat): ?>
                     <option
@@ -135,13 +163,14 @@ require_once "includes/header.php";
         </form>
 
         <!-- Task grid or empty state -->
+        <div id="task-results" aria-live="polite">
         <?php if (empty($tasks)): ?>
-            <div class="empty-state">
+            <div class="empty-state" id="task-empty-state">
                 <h3>No tasks found</h3>
                 <p>Try a different search or check back later.</p>
             </div>
         <?php else: ?>
-            <div class="task-grid">
+            <div class="task-grid" id="task-grid">
                 <?php foreach ($tasks as $task): ?>
                     <!-- Each task is a clickable card -->
                     <a href="/bidboard/task.php?id=<?= $task[
@@ -188,7 +217,7 @@ require_once "includes/header.php";
 
             <!-- Pagination UI -->
             <?php if ($total_pages > 1): ?>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem;">
+                <div id="task-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem;">
                     <span class="text-sm text-muted">
                         Showing <?= $offset + 1 ?>–<?= min(
     $offset + $per_page,
@@ -230,8 +259,165 @@ require_once "includes/header.php";
             <?php endif; ?>
 
         <?php endif; ?>
+        </div>
 
     </div>
 </div>
+
+<script>
+const taskFilterForm = document.getElementById('task-filter-form');
+const taskSearchInput = document.getElementById('task-search');
+const taskCategorySelect = document.getElementById('task-category');
+const taskResults = document.getElementById('task-results');
+let searchTimer;
+let activeTaskRequest;
+
+function buildTaskUrl(page = 1) {
+    const params = new URLSearchParams();
+    const search = taskSearchInput.value.trim();
+    const category = taskCategorySelect.value;
+
+    if (search) params.set('search', search);
+    if (category) params.set('category', category);
+    if (page > 1) params.set('page', page);
+
+    return window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+}
+
+function createTaskCard(task) {
+    const card = document.createElement('a');
+    card.href = '/bidboard/task.php?id=' + encodeURIComponent(task.id);
+    card.className = 'task-card';
+
+    const title = document.createElement('div');
+    title.className = 'task-card-title';
+    title.textContent = task.title;
+
+    const description = document.createElement('div');
+    description.className = 'task-card-desc';
+    description.textContent = task.description;
+
+    const meta = document.createElement('div');
+    meta.className = 'task-card-meta';
+
+    const category = document.createElement('span');
+    category.className = 'badge badge-category';
+    category.textContent = task.category;
+
+    const budget = document.createElement('span');
+    budget.className = 'text-sm';
+    budget.style.color = 'var(--success)';
+    budget.style.fontWeight = '600';
+    budget.textContent = 'Rs. ' + task.budget.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    const bids = document.createElement('span');
+    bids.className = 'text-sm text-muted';
+    bids.textContent = task.bid_count + ' bid' + (task.bid_count === 1 ? '' : 's');
+
+    const deadline = document.createElement('span');
+    deadline.className = 'text-sm text-muted';
+    deadline.style.marginLeft = 'auto';
+    deadline.textContent = 'Due ' + task.deadline;
+
+    meta.append(category, budget, bids, deadline);
+    card.append(title, description, meta);
+    return card;
+}
+
+async function updateTaskResults(page = 1) {
+    const params = new URLSearchParams({ ajax: '1', page: String(page) });
+    const search = taskSearchInput.value.trim();
+    const category = taskCategorySelect.value;
+
+    if (search) params.set('search', search);
+    if (category) params.set('category', category);
+
+    if (activeTaskRequest) activeTaskRequest.abort();
+    const requestController = new AbortController();
+    activeTaskRequest = requestController;
+    taskResults.setAttribute('aria-busy', 'true');
+
+    try {
+        const response = await fetch('/bidboard/index.php?' + params.toString(), {
+            headers: { Accept: 'application/json' },
+            signal: requestController.signal
+        });
+        if (!response.ok) throw new Error('Unable to load tasks.');
+
+        const data = await response.json();
+        taskResults.replaceChildren();
+        const currentUrl = buildTaskUrl(data.page);
+        window.history.replaceState({}, '', currentUrl);
+
+        if (data.tasks.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = '<h3>No tasks found</h3><p>Try a different search or check back later.</p>';
+            taskResults.append(emptyState);
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'task-grid';
+        data.tasks.forEach((task) => grid.append(createTaskCard(task)));
+        taskResults.append(grid);
+
+        if (data.total_pages > 1) {
+            const pagination = document.createElement('div');
+            pagination.id = 'task-pagination';
+            pagination.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem;';
+
+            const summary = document.createElement('span');
+            summary.className = 'text-sm text-muted';
+            const firstTask = ((data.page - 1) * data.per_page) + 1;
+            const lastTask = Math.min(data.page * data.per_page, data.total);
+            summary.textContent = 'Showing ' + firstTask + '–' + lastTask + ' of ' + data.total + ' tasks';
+            pagination.append(summary);
+
+            const controls = document.createElement('div');
+            controls.style.cssText = 'display:flex; gap:0.25rem; align-items:center;';
+            for (let page = 1; page <= data.total_pages; page++) {
+                const link = document.createElement('a');
+                link.href = buildTaskUrl(page);
+                link.className = 'btn btn-sm ' + (page === data.page ? 'btn-primary' : 'btn-ghost');
+                link.textContent = String(page);
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    loadTaskPage(page);
+                });
+                controls.append(link);
+            }
+            pagination.append(controls);
+            taskResults.append(pagination);
+        }
+    } catch (error) {
+        // Keep the regular form available so the user can still submit it normally.
+        if (error.name !== 'AbortError') console.error(error);
+    } finally {
+        if (activeTaskRequest === requestController) {
+            taskResults.removeAttribute('aria-busy');
+        }
+    }
+}
+
+function loadTaskPage(page) {
+    updateTaskResults(page);
+}
+
+taskSearchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(updateTaskResults, 300);
+});
+
+taskCategorySelect.addEventListener('change', updateTaskResults);
+
+taskFilterForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    updateTaskResults();
+});
+</script>
 
 <?php require_once "includes/footer.php"; ?>
