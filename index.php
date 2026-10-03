@@ -131,19 +131,16 @@ require_once "includes/header.php";
         </div>
 
         <!-- Search and filter bar -->
-        <form id="task-filter-form" method="GET" action="" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
-            <!-- Keyword search input -->
+        <form id="task-filter-form" method="GET" action="" class="filter-bar">
             <input
                 type="text"
                 id="task-search"
                 name="search"
-                class="form-control"
+                class="form-control filter-search-input"
                 placeholder="Search tasks..."
-                value="<?= htmlspecialchars($search) ?>"
-                style="flex:1; min-width:200px;">
+                value="<?= htmlspecialchars($search) ?>">
 
-            <!-- Category dropdown filter -->
-            <select id="task-category" name="category" class="form-control" style="width:200px;">
+            <select id="task-category" name="category" class="form-control filter-category-select">
                 <option value="">All categories</option>
                 <?php foreach ($categories as $cat): ?>
                     <option
@@ -156,7 +153,6 @@ require_once "includes/header.php";
 
             <button type="submit" class="btn btn-primary">Filter</button>
 
-            <!-- Clear filters link -->
             <?php if ($search || $category): ?>
                 <a href="/bidboard/index.php" class="btn btn-ghost">Clear</a>
             <?php endif; ?>
@@ -368,7 +364,7 @@ async function updateTaskResults(page = 1) {
         if (data.total_pages > 1) {
             const pagination = document.createElement('div');
             pagination.id = 'task-pagination';
-            pagination.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:2rem; flex-wrap:wrap; gap:1rem;';
+            pagination.className = 'pagination-wrap';
 
             const summary = document.createElement('span');
             summary.className = 'text-sm text-muted';
@@ -378,7 +374,7 @@ async function updateTaskResults(page = 1) {
             pagination.append(summary);
 
             const controls = document.createElement('div');
-            controls.style.cssText = 'display:flex; gap:0.25rem; align-items:center;';
+            controls.className = 'pagination-controls';
             for (let page = 1; page <= data.total_pages; page++) {
                 const link = document.createElement('a');
                 link.href = buildTaskUrl(page);

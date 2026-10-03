@@ -53,13 +53,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && $task["status"] === "open") {
     // Validation
     if ($name === "" || $email === "" || $price === "" || $pitch === "") {
         $error = "All fields are required.";
+    } elseif (strlen($pitch) < 20) {
+        $error = "Your pitch must contain at least 20 characters.";
+    } elseif (preg_match_all("/\p{L}/u", $pitch) < 10) {
+        $error =
+            "Your pitch must contain meaningful text with at least 10 letters.";
     } elseif (!preg_match('/^[A-Za-z][A-Za-z\s]*$/', $name)) {
         $error = "Name must start with a letter and contain only letters.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Enter a valid email address.";
     } elseif (!is_email_deliverable($email)) {
         $error =
-            "This email address could not be verfied, Please check for typos or use a different email";
+            "This email address could not be verified. Please check for typos or use a different email.";
     } elseif (!is_numeric($price) || $price <= 0) {
         $error = "Enter a valid bid amount.";
     } else {
@@ -114,23 +119,22 @@ require_once "includes/header.php";
     <div class="container">
 
         <!-- Back link -->
-        <a href="/bidboard/index.php" class="text-sm" style="color:var(--muted); text-decoration:none; display:inline-block; margin-bottom:1rem;">
+        <a href="/bidboard/index.php" class="text-sm back-link">
             &larr; Back to tasks
         </a>
 
-        <div style="display:grid; grid-template-columns:1fr 340px; gap:1.5rem; align-items:start;">
+        <div class="task-grid-layout">
 
             <!-- Left: task details -->
             <div>
                 <div class="card">
                     <div class="card-body">
                         <!-- Title and status badge -->
-                        <div class="flex items-center gap-1" style="flex-wrap:wrap; margin-bottom:0.5rem;">
-                            <h1 style="font-size:1.4rem; font-weight:700; letter-spacing:-0.02em;">
+                        <div class="flex items-center gap-1 mb-2">
+                            <h1 class="task-title">
                                 <?= htmlspecialchars($task["title"]) ?>
                             </h1>
                             <?php
-                            // Map status to badge class
                             $status_badges = [
                                 "open" => "badge-open",
                                 "in_progress" => "badge-progress",
@@ -152,7 +156,7 @@ require_once "includes/header.php";
                         </div>
 
                         <!-- Meta row: client, category, budget, deadline -->
-                        <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem;">
+                        <div class="task-meta-row">
                             <span class="text-sm text-muted">
                                 Posted by <strong><?= htmlspecialchars(
                                     $task["client_name"],
@@ -161,7 +165,7 @@ require_once "includes/header.php";
                             <span class="badge badge-category"><?= htmlspecialchars(
                                 $task["category"],
                             ) ?></span>
-                            <span class="text-sm" style="color:var(--success); font-weight:600;">
+                            <span class="text-sm task-budget">
                                 Budget: Rs. <?= number_format(
                                     $task["budget"],
                                     2,
@@ -176,33 +180,30 @@ require_once "includes/header.php";
                         </div>
 
                         <!-- Full task description -->
-                        <div style="line-height:1.7; color:var(--text);">
+                        <div class="task-description">
                             <?= nl2br(htmlspecialchars($task["description"])) ?>
                         </div>
-                        <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border);">
-                            <a href="/bidboard/report.php?type=task&id=<?= $task_id ?>" class="text-sm" style="color:var(--danger); text-decoration:none;">⚠️ Report this task</a>
+                        <div class="report-section">
+                            <a href="/bidboard/report.php?type=task&id=<?= $task_id ?>" class="text-sm report-link">⚠️ Report this task</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Existing bids section (public view) -->
                 <?php if (!empty($bids)): ?>
-                    <div style="margin-top:1.25rem;">
-                        <h3 style="font-size:0.95rem; font-weight:600; margin-bottom:0.75rem;">
+                    <div class="bids-section">
+                        <h3 class="bids-heading">
                             <?= count($bids) ?> bid<?= count($bids) != 1
      ? "s"
      : "" ?> submitted
                         </h3>
                         <?php foreach ($bids as $bid): ?>
-                            <div style="display:flex; justify-content:space-between; align-items:center;
-                                        padding:0.75rem 1rem; background:var(--surface);
-                                        border:1px solid var(--border); border-radius:var(--radius);
-                                        margin-bottom:0.5rem;">
+                            <div class="bid-item">
                                 <div>
                                     <span class="font-bold text-sm"><?= htmlspecialchars(
                                         $bid["freelancer_name"],
                                     ) ?></span>
-                                    <span class="text-sm text-muted" style="margin-left:0.5rem;">
+                                    <span class="text-sm text-muted bid-amount">
                                         Rs. <?= number_format(
                                             $bid["proposed_price"],
                                             2,
@@ -226,7 +227,7 @@ require_once "includes/header.php";
                 <?php if ($task["status"] !== "open"): ?>
                     <!-- Task no longer accepting bids -->
                     <div class="card">
-                        <div class="card-body" style="text-align:center; padding:2rem;">
+                        <div class="card-body closed-task-card">
                             <p class="text-muted">This task is no longer accepting bids.</p>
                         </div>
                     </div>
@@ -251,13 +252,13 @@ require_once "includes/header.php";
                                         generate_csrf_token(),
                                     ) ?>">
                                     <div class="form-group">
-                                        <label class="form-label" for="freelancer_name">Your name</label>
+                                        <label class="form-label" for="freelancer_name">Your name (*)</label>
                                         <input
                                             type="text"
                                             id="freelancer_name"
                                             name="freelancer_name"
                                             class="form-control"
-                                            placeholder="Jane Doe"
+                                            placeholder="Hari Kumar"
                                             value="<?= htmlspecialchars(
                                                 $_POST["freelancer_name"] ?? "",
                                             ) ?>"
@@ -265,7 +266,7 @@ require_once "includes/header.php";
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="form-label" for="freelancer_email">Email</label>
+                                        <label class="form-label" for="freelancer_email">Email (*)</label>
                                         <input
                                             type="email"
                                             id="freelancer_email"
@@ -281,7 +282,7 @@ require_once "includes/header.php";
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="form-label" for="proposed_price">Your bid (Rs. )</label>
+                                        <label class="form-label" for="proposed_price">Your bid (Rs. ) (*)</label>
                                         <input
                                             type="number"
                                             id="proposed_price"
@@ -301,20 +302,31 @@ require_once "includes/header.php";
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="form-label" for="pitch">Why you?</label>
+                                        <label class="form-label" for="pitch">Why you? (*)</label>
                                         <textarea
                                             id="pitch"
                                             name="pitch"
                                             class="form-control"
                                             placeholder="Briefly explain your experience and approach..."
+                                            minlength="20"
                                             required><?= htmlspecialchars(
                                                 $_POST["pitch"] ?? "",
                                             ) ?></textarea>
+
+                                        <div class="pitch-metrics-wrap">
+                                            <p id="pitchError" class="form-hint form-error-inline"></p>
+                                            <span id="pitchCounter" class="text-sm text-muted pitch-counter">
+                                                0 chars | 0 letters
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    <button type="submit" class="btn btn-primary" style="width:100%;">
+                                    <button type="submit" class="btn btn-primary btn-full">
                                         Submit bid
                                     </button>
+                                    <div class="mandatory">
+                                        (*) needs to be filled mandatorily
+                                    </div>
                                 </form>
                             <?php endif; ?>
                         </div>
@@ -391,20 +403,84 @@ if (priceInput) {
             priceInput.style.borderColor = '';
         }
     });
+
+    priceInput.addEventListener('keydown', (e) => {
+        if (e.key === '-' || e.key === 'Subtract') {
+            e.preventDefault();
+        }
+    });
+
+    priceInput.addEventListener('input', () => {
+        if (priceInput.value.includes('-')) {
+            priceInput.value = priceInput.value.replace(/-/g, "");
+        }
+    });
 }
 
-const priceInputEl = document.getElementById('proposed_price')
-if (priceInputEl) {
-  priceInputEl.addEventListener('keydown' , (e) => {
-    if (e.key === '-' || e.key === "Subtract") {
-      e.preventDefault()
+// Real time pitch validation and count displayer
+const pitchInput = document.getElementById('pitch');
+if (pitchInput) {
+    let pitchError = document.getElementById('pitchError');
+    let pitchCounter = document.getElementById('pitchCounter');
+
+    // Fallbacks if elements are missing from HTML
+    if (!pitchError) {
+        pitchError = document.createElement('p');
+        pitchError.id = 'pitchError';
+        pitchError.className = 'form-hint';
+        pitchError.style.color = 'var(--danger)';
+        pitchError.style.display = 'none';
+        pitchInput.insertAdjacentElement('afterend', pitchError);
     }
-  })
-  priceInputEl.addEventListener('input' , () => {
-    if (priceInputEl.value.includes('-')) {
-      priceInputEl.value = priceInputEl.value.replace(/-/g,"")
+
+    if (!pitchCounter) {
+        pitchCounter = document.createElement('span');
+        pitchCounter.id = 'pitchCounter';
+        pitchCounter.className = 'text-sm text-muted';
+        pitchCounter.style.fontSize = '0.8rem';
+        pitchInput.insertAdjacentElement('afterend', pitchCounter);
     }
-  })
+
+    const updatePitchMetrics = () => {
+        const rawValue = pitchInput.value;
+        const trimmedValue = rawValue.trim();
+        const charCount = rawValue.length;
+
+        // Match standard letters + international Unicode letters
+        const letterMatches = rawValue.match(/[\p{L}]/gu) || rawValue.match(/[a-zA-Z]/g) || [];
+        const letterCount = letterMatches.length;
+
+        // Update counter display
+        pitchCounter.textContent = `${charCount} chars | ${letterCount} letters`;
+
+        // Hide top PHP alert box if user resumes editing pitch
+        const phpAlert = document.querySelector('.alert-error');
+        if (phpAlert) {
+            phpAlert.style.display = 'none';
+        }
+
+        // Validation logic
+        if (trimmedValue.length === 0) {
+            pitchError.style.display = 'none';
+            pitchInput.style.borderColor = '';
+        } else if (trimmedValue.length < 20) {
+            pitchError.textContent = "Your pitch must contain at least 20 characters.";
+            pitchError.style.display = "block";
+            pitchInput.style.borderColor = 'var(--danger)';
+        } else if (letterCount < 10) {
+            pitchError.textContent = "Please enter a meaningful pitch with at least 10 letters.";
+            pitchError.style.display = 'block';
+            pitchInput.style.borderColor = 'var(--danger)';
+        } else {
+            pitchError.style.display = 'none';
+            pitchInput.style.borderColor = '';
+        }
+    };
+
+    pitchInput.addEventListener('input', updatePitchMetrics);
+
+    // Run immediately to handle pre-filled POST values
+    updatePitchMetrics();
 }
 </script>
 
