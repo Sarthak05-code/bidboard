@@ -79,6 +79,21 @@ require_once "includes/header.php";
             // Map task status to badge
             // Map bid status to badge + message
             // Map task status to badge
+            // Map bid status to badge + message
+
+            // Map task status to badge
+            // Map bid status to badge + message
+            // Map task status to badge
+            // Map bid status to badge + message
+
+            // Map task status to badge
+            // Map bid status to badge + message
+            // Map task status to badge
+            // Map bid status to badge + message
+
+            // Map task status to badge
+            // Map bid status to badge + message
+            // Map task status to badge
             elseif ($searched && empty($bids)): ?>
             <div class="empty-state">
                 <h3>No bids found</h3>
