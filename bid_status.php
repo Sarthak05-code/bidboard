@@ -2,17 +2,18 @@
 // Public page — freelancer enters their email to check all their bids
 // No account needed, just email lookup
 
-require_once 'includes/db.php';
+require_once "includes/db.php";
 
-$email  = trim($_POST['email'] ?? '');   // submitted email
-$bids   = [];                            // will hold results
-$searched = false;                       // tracks if a search was made
+// Switched to GET so freelancers can bookmark their history page
+$email = trim($_GET["email"] ?? "");
+$bids = [];
+$searched = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $email !== '') {
+if ($email !== "") {
     $searched = true;
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Enter a valid email address.';
+        $error = "Enter a valid email address.";
     } else {
         // Fetch all bids by this email with task details
         $stmt = $conn->prepare(
@@ -23,37 +24,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $email !== '') {
              JOIN tasks t   ON b.task_id    = t.id
              JOIN clients c ON t.client_id  = c.id
              WHERE b.freelancer_email = ?
-             ORDER BY b.submitted_at DESC"
+             ORDER BY b.submitted_at DESC",
         );
-        $stmt->bind_param('s', $email);
+        $stmt->bind_param("s", $email);
         $stmt->execute();
         $bids = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
     }
 }
 
-$page_title  = 'My Bid History';
-$nav_context = 'public';
-require_once 'includes/header.php';
+// Calculate summary metrics if bids are found
+$total_bids = count($bids);
+$accepted_bids = 0;
+$total_value = 0.0;
+
+foreach ($bids as $b) {
+    if ($b["status"] === "accepted") {
+        $accepted_bids++;
+        $total_value += (float) $b["proposed_price"];
+    }
+}
+
+$page_title = "My Bid History";
+$nav_context = "public";
+require_once "includes/header.php";
 ?>
 
 <div class="page-wrap">
-    <div class="container" style="max-width:700px;">
+    <div class="container container-narrow">
 
         <div class="page-header">
             <h1>Check your bids</h1>
             <p>Enter the email you used when bidding to see all your submissions.</p>
         </div>
 
-        <!-- Email lookup form -->
-        <form method="POST" action="" style="display:flex; gap:0.75rem; margin-bottom:2rem; flex-wrap:wrap;">
+        <!-- Email lookup form (GET method allows bookmarking search results) -->
+        <form method="GET" action="" class="email-search-form">
             <input
                 type="email"
                 name="email"
-                class="form-control"
+                class="form-control email-search-input"
                 placeholder="you@example.com"
                 value="<?= htmlspecialchars($email) ?>"
-                style="flex:1; min-width:220px;"
                 required>
             <button type="submit" class="btn btn-primary">Check bids</button>
         </form>
@@ -61,69 +73,122 @@ require_once 'includes/header.php';
         <?php if (isset($error)): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
 
-        <?php elseif ($searched && empty($bids)): ?>
+        <?php
+            // Map bid status to badge + message
+
+            // Map task status to badge
+            // Map bid status to badge + message
+            // Map task status to badge
+            elseif ($searched && empty($bids)): ?>
             <div class="empty-state">
                 <h3>No bids found</h3>
-                <p>No bids were submitted with <strong><?= htmlspecialchars($email) ?></strong>.</p>
-                <p class="text-sm text-muted" style="margin-top:0.4rem;">
-                    Double check your email or <a href="/bidboard/index.php" style="color:var(--accent);">browse open tasks</a>.
+                <p>No bids were submitted with <strong><?= htmlspecialchars(
+                    $email,
+                ) ?></strong>.</p>
+                <p class="text-sm text-muted mt-1">
+                    Double check your email address or <a href="/bidboard/index.php" class="text-accent">browse open tasks</a> to start bidding.
                 </p>
             </div>
 
         <?php elseif (!empty($bids)): ?>
-            <p class="text-sm text-muted" style="margin-bottom:1rem;">
-                Found <strong><?= count($bids) ?></strong> bid<?= count($bids) != 1 ? 's' : '' ?> for
-                <strong><?= htmlspecialchars($email) ?></strong>
-            </p>
+
+            <!-- Summary Stats Bar -->
+            <div class="bid-stats-bar">
+                <div class="bid-stat-item">
+                    <span class="text-sm text-muted">Total Bids</span>
+                    <span class="bid-stat-val"><?= $total_bids ?></span>
+                </div>
+                <div class="bid-stat-item">
+                    <span class="text-sm text-muted">Accepted</span>
+                    <span class="bid-stat-val text-success"><?= $accepted_bids ?></span>
+                </div>
+                <div class="bid-stat-item">
+                    <span class="text-sm text-muted">Accepted Value</span>
+                    <span class="bid-stat-val text-success">Rs. <?= number_format(
+                        $total_value,
+                        2,
+                    ) ?></span>
+                </div>
+            </div>
 
             <?php foreach ($bids as $bid):
-                // Map bid status to badge + message
-                $bid_badge = [
-                    'pending'  => ['badge-pending',  'Pending',  'The client has not reviewed your bid yet.'],
-                    'accepted' => ['badge-accepted', 'Accepted', 'Congratulations! The client accepted your bid.'],
-                    'rejected' => ['badge-rejected', 'Rejected', 'The client went with a different bid.'],
-                ];
-                [$bc, $bl, $msg] = $bid_badge[$bid['status']] ?? ['badge-pending', 'Pending', ''];
 
-                // Map task status to badge
-                $task_badges = [
-                    'open'        => ['badge-open',     'Open'],
-                    'in_progress' => ['badge-progress', 'In Progress'],
-                    'completed'   => ['badge-done',     'Completed'],
+                $bid_badge = [
+                    "pending" => [
+                        "badge-pending",
+                        "Pending",
+                        "The client has not reviewed your bid yet.",
+                    ],
+                    "accepted" => [
+                        "badge-accepted",
+                        "Accepted",
+                        "Congratulations! The client accepted your bid.",
+                    ],
+                    "rejected" => [
+                        "badge-rejected",
+                        "Rejected",
+                        "The client went with a different bid.",
+                    ],
                 ];
-                [$tbc, $tbl] = $task_badges[$bid['task_status']] ?? ['badge-pending', $bid['task_status']];
-            ?>
-                <div class="card" style="margin-bottom:1rem;">
+                [$bc, $bl, $msg] = $bid_badge[$bid["status"]] ?? [
+                    "badge-pending",
+                    "Pending",
+                    "",
+                ];
+
+                $task_badges = [
+                    "open" => ["badge-open", "Open"],
+                    "in_progress" => ["badge-progress", "In Progress"],
+                    "completed" => ["badge-done", "Completed"],
+                ];
+                [$tbc, $tbl] = $task_badges[$bid["task_status"]] ?? [
+                    "badge-pending",
+                    $bid["task_status"],
+                ];
+                ?>
+                <div class="card mb-2">
                     <div class="card-body">
 
                         <!-- Task title + status -->
-                        <div class="flex items-center gap-1" style="flex-wrap:wrap; margin-bottom:0.5rem;">
-                            <a href="/bidboard/task.php?id=<?= $bid['task_id'] ?>"
-                                style="font-weight:700; font-size:1rem; color:var(--accent); text-decoration:none;">
-                                <?= htmlspecialchars($bid['task_title']) ?>
+                        <div class="flex items-center gap-1 flex-wrap mb-1">
+                            <a href="/bidboard/task.php?id=<?= $bid[
+                                "task_id"
+                            ] ?>" class="bid-title-link">
+                                <?= htmlspecialchars($bid["task_title"]) ?>
                             </a>
                             <span class="badge <?= $tbc ?>"><?= $tbl ?></span>
                         </div>
 
-                        <!-- Client + deadline -->
-                        <p class="text-sm text-muted" style="margin-bottom:1rem;">
-                            Posted by <strong><?= htmlspecialchars($bid['client_name']) ?></strong>
+                        <!-- Client + deadline + budget -->
+                        <p class="text-sm text-muted mb-2">
+                            Posted by <strong><?= htmlspecialchars(
+                                $bid["client_name"],
+                            ) ?></strong>
                             &nbsp;&middot;&nbsp;
-                            Deadline: <?= date('M j, Y', strtotime($bid['task_deadline'])) ?>
+                            Deadline: <?= date(
+                                "M j, Y",
+                                strtotime($bid["task_deadline"]),
+                            ) ?>
                             &nbsp;&middot;&nbsp;
-                            Task budget: $<?= number_format($bid['task_budget'], 2) ?>
+                            Task budget: Rs. <?= number_format(
+                                $bid["task_budget"],
+                                2,
+                            ) ?>
                         </p>
 
                         <!-- Divider -->
-                        <div style="border-top:1px solid var(--border); margin-bottom:1rem;"></div>
+                        <div class="card-divider"></div>
 
                         <!-- Bid details + status -->
-                        <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:1rem;">
+                        <div class="flex items-center justify-between flex-wrap gap-1">
                             <div>
-                                <div class="flex items-center gap-1" style="margin-bottom:0.3rem;">
+                                <div class="flex items-center gap-1 mb-1">
                                     <span class="text-sm font-bold">Your bid:</span>
-                                    <span style="color:var(--success); font-weight:700;">
-                                        $<?= number_format($bid['proposed_price'], 2) ?>
+                                    <span class="text-success font-bold">
+                                        Rs. <?= number_format(
+                                            $bid["proposed_price"],
+                                            2,
+                                        ) ?>
                                     </span>
                                     <span class="badge <?= $bc ?>"><?= $bl ?></span>
                                 </div>
@@ -131,26 +196,27 @@ require_once 'includes/header.php';
                                 <p class="text-sm text-muted"><?= $msg ?></p>
                             </div>
                             <span class="text-sm text-muted">
-                                Submitted <?= date('M j, Y', strtotime($bid['submitted_at'])) ?>
+                                Submitted <?= date(
+                                    "M j, Y",
+                                    strtotime($bid["submitted_at"]),
+                                ) ?>
                             </span>
                         </div>
 
                         <!-- Show pitch -->
-                        <div style="margin-top:1rem; padding:0.75rem 1rem;
-                                    background:var(--bg); border-radius:var(--radius);
-                                    font-size:0.88rem; line-height:1.6; color:var(--muted);">
-                            <span class="font-bold" style="color:var(--text);">Your pitch: </span>
-                            <?= nl2br(htmlspecialchars($bid['pitch'])) ?>
+                        <div class="pitch-box">
+                            <span class="font-bold text-dark">Your pitch: </span>
+                            <?= nl2br(htmlspecialchars($bid["pitch"])) ?>
                         </div>
 
                     </div>
                 </div>
-            <?php endforeach; ?>
+            <?php
+            endforeach; ?>
 
         <?php endif; ?>
 
     </div>
-    
 </div>
 
-<?php require_once 'includes/footer.php'; ?>
+<?php require_once "includes/footer.php"; ?>
