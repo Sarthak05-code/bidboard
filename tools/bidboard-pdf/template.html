@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+            }
+            body {
+                padding: 40px;
+                color: #1f2937;
+                background: #fff;
+            }
+
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #e5e7eb;
+                padding-bottom: 20px;
+                margin-bottom: 25px;
+            }
+            .logo {
+                font-size: 24px;
+                font-weight: 800;
+                color: #2563eb;
+                letter-spacing: -0.5px;
+            }
+            .sub {
+                font-size: 12px;
+                color: #6b7280;
+                margin-top: 4px;
+            }
+
+            .meta-card {
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 25px;
+                display: flex;
+                justify-content: space-between;
+            }
+            .meta-label {
+                font-size: 11px;
+                text-transform: uppercase;
+                color: #6b7280;
+                font-weight: 600;
+            }
+            .meta-val {
+                font-size: 14px;
+                font-weight: 700;
+                color: #111827;
+                margin-top: 2px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+            th {
+                text-align: left;
+                background: #f3f4f6;
+                color: #374151;
+                font-size: 11px;
+                text-transform: uppercase;
+                padding: 10px 12px;
+                border-bottom: 2px solid #e5e7eb;
+            }
+            td {
+                padding: 12px;
+                font-size: 13px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .badge {
+                display: inline-block;
+                padding: 3px 8px;
+                border-radius: 12px;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: capitalize;
+            }
+            .badge-accepted {
+                background: #dcfce7;
+                color: #15803d;
+            }
+            .badge-pending {
+                background: #fef3c7;
+                color: #b45309;
+            }
+            .badge-rejected {
+                background: #fee2e2;
+                color: #b91c1c;
+            }
+
+            .price {
+                font-weight: 700;
+                color: #059669;
+            }
+            .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 11px;
+                color: #9ca3af;
+                border-top: 1px solid #f3f4f6;
+                padding-top: 15px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <div class="logo">BIDBOARD</div>
+                <div class="sub">Freelance Activity & Bid History Report</div>
+            </div>
+            <div style="text-align: right">
+                <div style="font-weight: 700; font-size: 14px">
+                    CONFIDENTIAL
+                </div>
+                <div class="sub">Generated via System Engine</div>
+            </div>
+        </div>
+
+        <div class="meta-card">
+            <div>
+                <div class="meta-label">Freelancer Account</div>
+                <div class="meta-val">{{EMAIL}}</div>
+            </div>
+            <div>
+                <div class="meta-label">Total Bids Submitted</div>
+                <div class="meta-val">{{TOTAL_BIDS}}</div>
+            </div>
+            <div>
+                <div class="meta-label">Accepted Bids Value</div>
+                <div class="meta-val" style="color: #059669">
+                    Rs. {{TOTAL_VALUE}}
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Task Title</th>
+                    <th>Client</th>
+                    <th>Proposed Price</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ROWS}}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            Generated automatically by BidBoard Polyglot Engine (PHP + Rust)
+            &bull; Page 1 of 1
+        </div>
+    </body>
+</html>

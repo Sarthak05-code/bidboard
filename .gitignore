@@ -23,3 +23,8 @@ desktop.ini
 
 # Zip files (we don't need these in the repo)
 *.zip
+
+
+# Rust build artifacts
+tools/bidboard-pdf/target/
+uploads/temp/

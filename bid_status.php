@@ -75,25 +75,7 @@ require_once "includes/header.php";
 
         <?php
             // Map bid status to badge + message
-
-            // Map task status to badge
-            // Map bid status to badge + message
-            // Map task status to badge
-            // Map bid status to badge + message
-
-            // Map task status to badge
-            // Map bid status to badge + message
-            // Map task status to badge
-            // Map bid status to badge + message
-
-            // Map task status to badge
-            // Map bid status to badge + message
-            // Map task status to badge
-            // Map bid status to badge + message
-
-            // Map task status to badge
-            // Map bid status to badge + message
-            // Map task status to badge
+            
             elseif ($searched && empty($bids)): ?>
             <div class="empty-state">
                 <h3>No bids found</h3>
@@ -106,6 +88,27 @@ require_once "includes/header.php";
             </div>
 
         <?php elseif (!empty($bids)): ?>
+        <!-- PDF Action Buttons -->
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-muted">Showing results for <strong><?= htmlspecialchars(
+                $email,
+            ) ?></strong></span>
+            <div class="flex items-center gap-1">
+                <a href="/bidboard/export_pdf.php?email=<?= urlencode(
+                    $email,
+                ) ?>&mode=preview"
+                   class="btn btn-ghost btn-sm"
+                   target="_blank">
+                    👁️ Preview PDF
+                </a>
+                <a href="/bidboard/export_pdf.php?email=<?= urlencode(
+                    $email,
+                ) ?>&mode=download"
+                   class="btn btn-ghost btn-sm">
+                    💾 Download PDF
+                </a>
+            </div>
+        </div>
 
             <!-- Summary Stats Bar -->
             <div class="bid-stats-bar">
