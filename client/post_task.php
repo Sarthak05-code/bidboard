@@ -31,7 +31,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $budget = trim($_POST["budget"] ?? "");
     $deadline = trim($_POST["deadline"] ?? "");
 
-    // Validation
+    // Count Unicode letters for meaningful content checks
+    preg_match_all("/\p{L}/u", $title, $title_letter_matches);
+    $title_letter_count = count($title_letter_matches[0]);
+
+    preg_match_all("/\p{L}/u", $description, $desc_letter_matches);
+    $desc_letter_count = count($desc_letter_matches[0]);
+
+    // Server-Side Validation
     if (
         $title === "" ||
         $description === "" ||
@@ -40,10 +47,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $deadline === ""
     ) {
         $error = "All fields are required.";
+    } elseif (!preg_match("/^\p{L}/u", $title)) {
+        $error =
+            "Task title must start with a letter (cannot start with numbers or symbols).";
+    } elseif (mb_strlen($title) < 10) {
+        $error = "Task title must be at least 10 characters long.";
+    } elseif ($title_letter_count < 6) {
+        $error = "Task title must contain at least 6 letters.";
+    } elseif (mb_strlen($description) < 30) {
+        $error = "Description must be at least 30 characters long.";
+    } elseif ($desc_letter_count < 20) {
+        $error =
+            "Please provide a meaningful description with at least 20 letters.";
     } elseif (!in_array($category, $categories, true)) {
-        $error = "Invalid category selected";
+        $error = "Invalid category selected.";
     } elseif (!is_numeric($budget) || $budget <= 0) {
-        $error = "Enter a valid budget amount.";
+        $error = "Enter a valid budget amount greater than 0.";
     } elseif (!strtotime($deadline) || strtotime($deadline) <= time()) {
         $error = "Deadline must be a future date.";
     } else {
@@ -63,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         );
 
         if ($stmt->execute()) {
-            $new_task_id = $conn->insert_id; // get the new task's ID
+            $new_task_id = $conn->insert_id;
             $stmt->close();
             header("Location: /bidboard/task.php?id=" . $new_task_id);
             exit();
@@ -80,7 +99,7 @@ require_once "../includes/header.php";
 ?>
 
 <div class="page-wrap">
-    <div class="container" style="max-width:680px;">
+    <div class="container container-narrow">
 
         <div class="page-header">
             <h1>Post a task</h1>
@@ -93,12 +112,14 @@ require_once "../includes/header.php";
 
         <div class="card">
             <div class="card-body">
-                <form method="POST" action="">
+                <form id="post-task-form" method="POST" action="">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(
                         generate_csrf_token(),
                     ) ?>">
+
+                    <!-- Task Title -->
                     <div class="form-group">
-                        <label class="form-label" for="title">Task title</label>
+                        <label class="form-label" for="title">Task title (*)</label>
                         <input
                             type="text"
                             id="title"
@@ -109,26 +130,33 @@ require_once "../includes/header.php";
                                 $_POST["title"] ?? "",
                             ) ?>"
                             required>
-                        <p class="form-hint">Keep it concise — freelancers scan titles first.</p>
+                        <div class="counter-wrap">
+                            <p id="titleError" class="form-hint form-error-inline"></p>
+                            <span id="titleCounter" class="text-sm text-muted pitch-counter">0 chars | 0 letters</span>
+                        </div>
                     </div>
 
+                    <!-- Task Description -->
                     <div class="form-group">
-                        <label class="form-label" for="description">Description</label>
+                        <label class="form-label" for="description">Description (*)</label>
                         <textarea
                             id="description"
                             name="description"
-                            class="form-control"
-                            style="min-height:140px;"
+                            class="form-control textarea-lg"
                             placeholder="Describe the task in detail — requirements, deliverables, tech stack, etc."
                             required><?= htmlspecialchars(
                                 $_POST["description"] ?? "",
                             ) ?></textarea>
+                        <div class="counter-wrap">
+                            <p id="descError" class="form-hint form-error-inline"></p>
+                            <span id="descCounter" class="text-sm text-muted pitch-counter">0 chars | 0 letters</span>
+                        </div>
                     </div>
 
-                    <!-- Two-column row for category and budget -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <!-- Category & Budget -->
+                    <div class="form-row-2col">
                         <div class="form-group">
-                            <label class="form-label" for="category">Category</label>
+                            <label class="form-label" for="category">Category (*)</label>
                             <select id="category" name="category" class="form-control" required>
                                 <option value="">Select a category</option>
                                 <?php foreach ($categories as $cat): ?>
@@ -144,7 +172,7 @@ require_once "../includes/header.php";
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label" for="budget">Budget (Rs. )</label>
+                            <label class="form-label" for="budget">Budget (Rs. ) (*)</label>
                             <input
                                 type="number"
                                 id="budget"
@@ -157,12 +185,13 @@ require_once "../includes/header.php";
                                     $_POST["budget"] ?? "",
                                 ) ?>"
                                 required>
-                            <p class="form-hint">Your maximum budget.</p>
+                            <p id="budgetError" class="form-hint form-error-inline"></p>
                         </div>
                     </div>
 
+                    <!-- Deadline -->
                     <div class="form-group">
-                        <label class="form-label" for="deadline">Deadline</label>
+                        <label class="form-label" for="deadline">Deadline (*)</label>
                         <input
                             type="date"
                             id="deadline"
@@ -175,9 +204,13 @@ require_once "../includes/header.php";
                             required>
                     </div>
 
-                    <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                    <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Post task</button>
                         <a href="/bidboard/client/dashboard.php" class="btn btn-ghost">Cancel</a>
+                    </div>
+
+                    <div class="mandatory">
+                        (*) needs to be filled mandatorily
                     </div>
 
                 </form>
@@ -186,41 +219,124 @@ require_once "../includes/header.php";
 
     </div>
 </div>
-<script>
-// Real-time budget validation
-const budgetInput = document.getElementById('budget');
-const budgetError = document.createElement('p');
-budgetError.className = 'form-hint';
-budgetError.style.color = 'var(--danger)';
-budgetError.style.display = 'none';
-budgetInput.insertAdjacentElement('afterend', budgetError);
 
-budgetInput.addEventListener('input', () => {
-    const value = parseFloat(budgetInput.value);
-    if (budgetInput.value.length > 0 && (isNaN(value) || value <= 0)) {
-        budgetError.textContent = 'Enter a valid budget greater than 0.';
-        budgetError.style.display = 'block';
-        budgetInput.style.borderColor = 'var(--danger)';
-    } else {
-        budgetError.style.display = 'none';
-        budgetInput.style.borderColor = '';
+<script>
+// Helper to count Unicode letters
+function countLetters(str) {
+    const matches = str.match(/[\p{L}]/gu);
+    return matches ? matches.length : 0;
+}
+
+// 1. Title Validation
+const titleInput = document.getElementById('title');
+const titleCounter = document.getElementById('titleCounter');
+const titleError = document.getElementById('titleError');
+
+function validateTitle() {
+    const val = titleInput.value;
+    const trimmed = val.trim();
+    const chars = val.length;
+    const letters = countLetters(val);
+
+    titleCounter.textContent = `${chars} chars | ${letters} letters`;
+
+    if (trimmed.length === 0) {
+        titleError.textContent = '';
+        titleInput.classList.remove('input-invalid');
+        return true;
+    }
+
+    if (!/^[\p{L}]/u.test(trimmed)) {
+        titleError.textContent = 'Title must start with a letter.';
+        titleInput.classList.add('input-invalid');
+        return false;
+    }
+
+    if (trimmed.length < 10) {
+        titleError.textContent = 'Title must be at least 10 characters.';
+        titleInput.classList.add('input-invalid');
+        return false;
+    }
+
+    if (letters < 6) {
+        titleError.textContent = 'Title must contain at least 6 letters.';
+        titleInput.classList.add('input-invalid');
+        return false;
+    }
+
+    titleError.textContent = '';
+    titleInput.classList.remove('input-invalid');
+    return true;
+}
+
+titleInput.addEventListener('input', validateTitle);
+
+// 2. Description Validation
+const descInput = document.getElementById('description');
+const descCounter = document.getElementById('descCounter');
+const descError = document.getElementById('descError');
+
+function validateDescription() {
+    const val = descInput.value;
+    const trimmed = val.trim();
+    const chars = val.length;
+    const letters = countLetters(val);
+
+    descCounter.textContent = `${chars} chars | ${letters} letters`;
+
+    if (trimmed.length === 0) {
+        descError.textContent = '';
+        descInput.classList.remove('input-invalid');
+        return true;
+    }
+
+    if (trimmed.length < 30) {
+        descError.textContent = 'Description must be at least 30 characters.';
+        descInput.classList.add('input-invalid');
+        return false;
+    }
+
+    if (letters < 20) {
+        descError.textContent = 'Please enter at least 20 letters.';
+        descInput.classList.add('input-invalid');
+        return false;
+    }
+
+    descError.textContent = '';
+    descInput.classList.remove('input-invalid');
+    return true;
+}
+
+descInput.addEventListener('input', validateDescription);
+
+// 3. Budget Validation
+const budgetInput = document.getElementById('budget');
+const budgetError = document.getElementById('budgetError');
+
+budgetInput.addEventListener('keydown', (e) => {
+    if (e.key === '-' || e.key === 'Subtract') {
+        e.preventDefault();
     }
 });
 
-const budgetInputEl = document.getElementById('budget');
-if (budgetInputEl) {
-    budgetInputEl.addEventListener('keydown', (e) => {
-        if (e.key === '-' || e.key === 'Subtract') {
-            e.preventDefault();
-        }
-    });
+budgetInput.addEventListener('input', () => {
+    if (budgetInput.value.includes('-')) {
+        budgetInput.value = budgetInput.value.replace(/-/g, '');
+    }
 
-    budgetInputEl.addEventListener('input', () => {
-        if (budgetInputEl.value.includes('-')) {
-            budgetInputEl.value = budgetInputEl.value.replace(/-/g, '');
-        }
-    });
-}
+    const value = parseFloat(budgetInput.value);
+    if (budgetInput.value.length > 0 && (isNaN(value) || value <= 0)) {
+        budgetError.textContent = 'Enter a valid budget greater than 0.';
+        budgetInput.classList.add('input-invalid');
+    } else {
+        budgetError.textContent = '';
+        budgetInput.classList.remove('input-invalid');
+    }
+});
+
+// Run initial counters if fields populated via POST redirect
+validateTitle();
+validateDescription();
 </script>
 
 <?php require_once "../includes/footer.php"; ?>
