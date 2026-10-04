@@ -1,3 +1,4 @@
+use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptions};
 use serde::Deserialize;
 use std::env;
@@ -18,6 +19,14 @@ struct Payload {
     email: String,
     output_path: String,
     bids: Vec<Bid>,
+}
+
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;") // must be first
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,7 +50,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut accepted_val = 0.0;
 
     for bid in &payload.bids {
-        let badge_class = match bid.status.as_str() {
+        let status = bid.status.trim().to_lowercase();
+        let badge_class = match status.as_str() {
             "accepted" => {
                 let price_clean: f64 = bid.proposed_price.replace(",", "").parse().unwrap_or(0.0);
                 accepted_val += price_clean;
@@ -59,12 +69,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 <td><span class='badge {}'>{}</span></td>
                 <td style='color:#6b7280;'>{}</td>
             </tr>",
-            bid.task_title,
-            bid.client_name,
-            bid.proposed_price,
+            escape_html(&bid.task_title),
+            escape_html(&bid.client_name),
+            escape_html(&bid.proposed_price),
             badge_class,
-            bid.status,
-            bid.submitted_at
+            escape_html(&status),
+            escape_html(&bid.submitted_at)
         ));
     }
 
@@ -78,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let final_html = template_str
-        .replace("{{EMAIL}}", &payload.email)
+        .replace("{{EMAIL}}", &escape_html(&payload.email))
         .replace("{{TOTAL_BIDS}}", &payload.bids.len().to_string())
         .replace("{{TOTAL_VALUE}}", &format!("{:.2}", accepted_val))
         .replace("{{ROWS}}", &rows_html);
@@ -110,7 +120,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tab.navigate_to(&absolute_html_url)?;
     tab.wait_until_navigated()?;
 
-    let pdf_bytes = tab.print_to_pdf(None)?;
+    let pdf_bytes = tab.print_to_pdf(Some(PrintToPdfOptions {
+        print_background: Some(true),
+        ..Default::default()
+    }))?;
     fs::write(&payload.output_path, pdf_bytes)?;
 
     // Clean up temp HTML file
