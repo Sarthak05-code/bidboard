@@ -51,6 +51,17 @@ if (empty($all_bids)) {
     );
     exit();
 }
+// The chosen bid must be one of the pending bids on this task
+$pending_ids = array_map(fn($b) => (int) $b["id"], $all_bids);
+if (!in_array($bid_id, $pending_ids, true)) {
+    header(
+        "Location: /bidboard/client/task_bids.php?id=" .
+            $task_id .
+            "&error=" .
+            urlencode("That bid is no longer available."),
+    );
+    exit();
+}
 
 // 3. Mark selected bid as 'accepted'
 $stmt = $conn->prepare(
