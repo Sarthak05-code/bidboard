@@ -77,6 +77,13 @@
                 border-bottom: 1px solid #f3f4f6;
             }
 
+            tr {
+                page-break-inside: avoid;
+            }
+            thead {
+                display: table-header-group; /* repeats header for each page */
+            }
+
             .badge {
                 display: inline-block;
                 padding: 3px 8px;
@@ -116,7 +123,7 @@
         <div class="header">
             <div>
                 <div class="logo">BIDBOARD</div>
-                <div class="sub">Freelance Activity & Bid History Report</div>
+                <div class="sub">Freelance Activity &amp; Bid History Report</div>
             </div>
             <div style="text-align: right">
                 <div style="font-weight: 700; font-size: 14px">
@@ -160,7 +167,6 @@
 
         <div class="footer">
             Generated automatically by BidBoard Polyglot Engine (PHP + Rust)
-            &bull; Page 1 of 1
         </div>
     </body>
 </html>

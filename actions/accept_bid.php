@@ -2,8 +2,9 @@
 // Action: accept a bid
 // When a bid is accepted:
 //   - that bid's status → 'accepted'
-//   - all other bids on same task → 'rejected'
+//   - all other pending bids on same task → 'rejected'
 //   - task status → 'in_progress'
+//   - accepted freelancer gets "accepted" email, all others get "rejected" email
 
 session_name("bidboard_client");
 session_start();
@@ -32,43 +33,51 @@ if ($bid_id <= 0 || $task_id <= 0) {
 }
 
 // Verify the task belongs to this client and is still open
+// (also fetches the title, which the emails need)
 $check = $conn->prepare(
-    "SELECT id FROM tasks WHERE id = ? AND client_id = ? AND status = 'open'",
+    "SELECT id, title FROM tasks WHERE id = ? AND client_id = ? AND status = 'open'",
 );
 $check->bind_param("ii", $task_id, $client_id);
 $check->execute();
-$check->store_result();
+$task_data = $check->get_result()->fetch_assoc();
+$check->close();
 
-if ($check->num_rows === 0) {
+if (!$task_data) {
     // Task not found, not owned by this client, or already closed
-    $check->close();
     header("Location: /bidboard/client/dashboard.php");
     exit();
 }
-$check->close();
 
+// Verify the chosen bid is a pending bid on this task
+// (also fetches the winner's name and email for the email)
 $verify = $conn->prepare(
-    "SELECT id
+    "SELECT id, freelancer_name, freelancer_email
      FROM bids
      WHERE id = ?
        AND task_id = ?
        AND status = 'pending'",
 );
-
 $verify->bind_param("ii", $bid_id, $task_id);
-
 $verify->execute();
+$bid_data = $verify->get_result()->fetch_assoc();
+$verify->close();
 
-$verify->store_result();
-
-if ($verify->num_rows === 0) {
-    $verify->close();
-
+if (!$bid_data) {
     $_SESSION["flash"] = "That bid is no longer available";
     header("Location: /bidboard/client/task_bids.php?id=" . $task_id);
     exit();
 }
-$verify->close();
+
+// Fetch the OTHER pending bids NOW, before their status changes to 'rejected'
+$others_stmt = $conn->prepare(
+    "SELECT id, freelancer_name, freelancer_email
+     FROM bids
+     WHERE task_id = ? AND id != ? AND status = 'pending'",
+);
+$others_stmt->bind_param("ii", $task_id, $bid_id);
+$others_stmt->execute();
+$other_bids = $others_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$others_stmt->close();
 
 // Mark the accepted bid as 'accepted'
 $accept = $conn->prepare(
@@ -95,31 +104,28 @@ $progress->execute();
 $progress->close();
 
 // Notify the accepted freelancer
-$bid_info = $conn->prepare(
-    "SELECT freelancer_name, freelancer_email FROM bids WHERE id = ?",
+$sent = send_bid_notification(
+    $bid_data["freelancer_email"],
+    $bid_data["freelancer_name"],
+    $task_data["title"],
+    "accepted",
 );
-$bid_info->bind_param("i", $bid_id);
-$bid_info->execute();
-$bid_data = $bid_info->get_result()->fetch_assoc();
-$bid_info->close();
+error_log("Notify accepted bid {$bid_id}: " . ($sent ? "sent" : "FAILED"));
 
-$task_info = $conn->prepare("SELECT title FROM tasks WHERE id = ?");
-$task_info->bind_param("i", $task_id);
-$task_info->execute();
-$task_data = $task_info->get_result()->fetch_assoc();
-$task_info->close();
-
-if ($bid_data && $task_data) {
-    send_bid_notification(
-        $bid_data["freelancer_email"],
-        $bid_data["freelancer_name"],
+// Notify every other freelancer who was rejected
+foreach ($other_bids as $b) {
+    $sent = send_bid_notification(
+        $b["freelancer_email"],
+        $b["freelancer_name"],
         $task_data["title"],
-        "accepted",
+        "rejected",
     );
+    error_log("Notify rejected bid {$b["id"]}: " . ($sent ? "sent" : "FAILED"));
 }
 
 // Flash success message for the bids page
-$_SESSION["flash"] = "Bid accepted. Task is now in progress.";
+$_SESSION["flash"] =
+    "Bid accepted. Task is now in progress. All freelancers have been notified.";
 
 header("Location: /bidboard/client/task_bids.php?id=" . $task_id);
 exit();
