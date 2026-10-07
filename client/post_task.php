@@ -10,6 +10,7 @@ $error = "";
 // Preset categories for the dropdown
 $categories = [
     "Web Development",
+    "System Level Engineering",
     "Mobile Development",
     "Design / UI-UX",
     "Writing / Content",
