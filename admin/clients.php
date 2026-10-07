@@ -3,6 +3,7 @@
 
 require_once "../includes/auth_admin.php";
 require_once "../includes/db.php";
+require_once "../includes/mailer.php";
 
 $flash = $_SESSION["flash"] ?? "";
 unset($_SESSION["flash"]);
@@ -23,6 +24,22 @@ if (
     $stmt->bind_param("ii", $new_val, $cid);
     $stmt->execute();
     $stmt->close();
+
+    $client_stmt = $conn->prepare(
+        "SELECT name, email FROM clients WHERE id = ?",
+    );
+    $client_stmt->bind_param("i", $cid);
+    $client_stmt->execute();
+    $client_data = $client_stmt->get_result()->fetch_assoc();
+    $client_stmt->close();
+
+    if ($client_data) {
+        send_account_status_notification(
+            $client_data["email"],
+            $client_data["name"],
+            $new_val === 1,
+        );
+    }
 
     $_SESSION["flash"] = $new_val
         ? "Client reactivated."
