@@ -63,7 +63,7 @@ if (!file_exists($rust_bin)) {
     die("PDF generator binary not found at: " . htmlspecialchars($rust_bin));
 }
 
-$cmd = '"' . $rust_bin . '" "' . $json_path . '" 2>&1';
+$cmd = escapeshellarg($rust_bin) . " " . escapeshellarg($json_path) . " 2>&1";
 exec($cmd, $output, $return_code);
 
 // Cleanup JSON temp file
