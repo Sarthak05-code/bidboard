@@ -221,10 +221,16 @@ require_once "../includes/header.php";
                                         $task["budget"],
                                         2,
                                     ) ?></td>
-                                    <td class="text-sm"><?= date(
-                                        "M j, Y",
-                                        strtotime($task["deadline"]),
-                                    ) ?></td>
+                                    <?php $dl = get_deadline_info(
+                                        $task["deadline"],
+                                    ); ?>
+                                    <td class="text-sm <?= $dl[
+                                        "class"
+                                    ] ?>" title="<?= htmlspecialchars(
+    date("M j, Y", strtotime($task["deadline"])),
+) ?>">
+                                        <?= htmlspecialchars($dl["label"]) ?>
+                                    </td>
                                     <td class="text-sm"><?= $task[
                                         "bid_count"
                                     ] ?></td>

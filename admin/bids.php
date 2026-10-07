@@ -189,10 +189,18 @@ require_once "../includes/header.php";
                                     <td><span class="badge <?= $bc ?>"><?= ucfirst(
     $bid["status"],
 ) ?></span></td>
-                                    <td class="text-sm text-muted"><?= date(
-                                        "M j, Y",
-                                        strtotime($bid["submitted_at"]),
-                                    ) ?></td>
+                                    <td class="text-sm text-muted" title="<?= htmlspecialchars(
+                                        date(
+                                            "M j, Y g:i A",
+                                            strtotime($bid["submitted_at"]),
+                                        ),
+                                    ) ?>">
+                                        <?= htmlspecialchars(
+                                            format_relative_time(
+                                                $bid["submitted_at"],
+                                            ),
+                                        ) ?>
+                                    </td>
                                     <td>
                                         <form method="POST" action=""
                                               onsubmit="return confirm('Delete this bid?')">

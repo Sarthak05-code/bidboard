@@ -77,15 +77,20 @@ require_once "../includes/header.php";
                             $task["status"] ?>
                     </span>
                 </div>
+                <?php $dl = get_deadline_info($task["deadline"]); ?>
                 <p class="text-sm text-muted mt-1">
                     Budget: Rs. <?= number_format(
                         $task["budget"],
                         2,
                     ) ?> &nbsp;&middot;&nbsp;
-                    Deadline: <?= date(
-                        "M j, Y",
-                        strtotime($task["deadline"]),
-                    ) ?> &nbsp;&middot;&nbsp;
+                    <span class="<?= $dl[
+                        "class"
+                    ] ?>" title="<?= htmlspecialchars(
+    date("M j, Y", strtotime($task["deadline"])),
+) ?>">
+                        <?= htmlspecialchars($dl["label"]) ?>
+                    </span>
+                    &nbsp;&middot;&nbsp;
                     <?= count($bids) ?> bid<?= count($bids) != 1 ? "s" : "" ?>
                 </p>
             </div>
@@ -172,10 +177,16 @@ require_once "../includes/header.php";
                                 2,
                             ) ?></strong>
                             &nbsp;&middot;&nbsp;
-                            <?= date(
-                                "M j, Y",
-                                strtotime($bid["submitted_at"]),
-                            ) ?>
+                            <span title="<?= htmlspecialchars(
+                                date(
+                                    "M j, Y g:i A",
+                                    strtotime($bid["submitted_at"]),
+                                ),
+                            ) ?>">
+                                <?= htmlspecialchars(
+                                    format_relative_time($bid["submitted_at"]),
+                                ) ?>
+                            </span>
                         </div>
 
                         <!-- Pitch text -->

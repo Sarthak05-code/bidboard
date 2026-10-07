@@ -76,6 +76,7 @@ if (($_GET["ajax"] ?? "") === "1") {
     header("Content-Type: application/json; charset=utf-8");
 
     $ajax_tasks = array_map(function ($task) {
+        $info = get_deadline_info($task["deadline"]);
         return [
             "id" => (int) $task["id"],
             "title" => $task["title"],
@@ -83,7 +84,9 @@ if (($_GET["ajax"] ?? "") === "1") {
             "category" => $task["category"],
             "budget" => (float) $task["budget"],
             "bid_count" => (int) $task["bid_count"],
-            "deadline" => date("M j", strtotime($task["deadline"])),
+            "deadline" => $task["deadline"], // ISO date for client-side relative/urgency
+            "deadline_label" => $info["label"],
+            "deadline_class" => $info["class"],
         ];
     }, $tasks);
 
@@ -163,7 +166,7 @@ require_once "includes/header.php";
         <?php if (empty($tasks)): ?>
             <div class="empty-state" id="task-empty-state">
                 <h3>No tasks found</h3>
-                <p>Try a different search or check back later.</p>
+                <p>Try a different search or clear the filters.</p>
             </div>
         <?php else: ?>
             <div class="task-grid" id="task-grid">
@@ -199,12 +202,14 @@ require_once "includes/header.php";
      : "" ?>
                             </span>
 
-                            <!-- Deadline -->
-                            <span class="text-sm text-muted" style="margin-left:auto;">
-                                Due <?= date(
-                                    "M j",
-                                    strtotime($task["deadline"]),
-                                ) ?>
+                            <!-- Deadline with urgency + relative label -->
+                            <?php $dl = get_deadline_info($task["deadline"]); ?>
+                            <span class="text-sm <?= $dl[
+                                "class"
+                            ] ?>" style="margin-left:auto;" title="<?= htmlspecialchars(
+    date("M j, Y", strtotime($task["deadline"])),
+) ?>">
+                                <?= htmlspecialchars($dl["label"]) ?>
                             </span>
                         </div>
                     </a>
@@ -314,9 +319,15 @@ function createTaskCard(task) {
     bids.textContent = task.bid_count + ' bid' + (task.bid_count === 1 ? '' : 's');
 
     const deadline = document.createElement('span');
-    deadline.className = 'text-sm text-muted';
+    deadline.className = 'text-sm ' + (task.deadline_class || 'deadline-ok');
     deadline.style.marginLeft = 'auto';
-    deadline.textContent = 'Due ' + task.deadline;
+    deadline.textContent = task.deadline_label || ('Due ' + task.deadline);
+    if (task.deadline) {
+        try {
+            const d = new Date(task.deadline + 'T12:00:00');
+            deadline.title = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch (e) {}
+    }
 
     meta.append(category, budget, bids, deadline);
     card.append(title, description, meta);
@@ -336,6 +347,12 @@ async function updateTaskResults(page = 1) {
     activeTaskRequest = requestController;
     taskResults.setAttribute('aria-busy', 'true');
 
+    // Show loading indicator while fetching
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'loading-state';
+    loadingEl.innerHTML = '<div class="loading-spinner" aria-hidden="true"></div><p>Loading tasks…</p>';
+    taskResults.replaceChildren(loadingEl);
+
     try {
         const response = await fetch('/bidboard/index.php?' + params.toString(), {
             headers: { Accept: 'application/json' },
@@ -351,7 +368,7 @@ async function updateTaskResults(page = 1) {
         if (data.tasks.length === 0) {
             const emptyState = document.createElement('div');
             emptyState.className = 'empty-state';
-            emptyState.innerHTML = '<h3>No tasks found</h3><p>Try a different search or check back later.</p>';
+            emptyState.innerHTML = '<h3>No tasks found</h3><p>Try a different search or clear the filters.</p>';
             taskResults.append(emptyState);
             return;
         }

@@ -128,5 +128,109 @@ function is_ip_rate_limited(
     return false;
 }
 
+/**
+ * Relative time for past events (posted, submitted, etc.)
+ * Returns strings like "just now", "3 hours ago", "2 days ago", or a short date.
+ */
+function format_relative_time($datetime): string
+{
+    $ts = is_numeric($datetime)
+        ? (int) $datetime
+        : strtotime((string) $datetime);
+    if ($ts === false || $ts <= 0) {
+        return "";
+    }
+
+    $diff = time() - $ts;
+
+    if ($diff < 0) {
+        // Future timestamp — fall back to absolute
+        return date("M j, Y", $ts);
+    }
+    if ($diff < 60) {
+        return "just now";
+    }
+    if ($diff < 3600) {
+        $m = (int) floor($diff / 60);
+        return $m . " min" . ($m === 1 ? "" : "s") . " ago";
+    }
+    if ($diff < 86400) {
+        $h = (int) floor($diff / 3600);
+        return $h . " hour" . ($h === 1 ? "" : "s") . " ago";
+    }
+    if ($diff < 604800) {
+        $d = (int) floor($diff / 86400);
+        return $d . " day" . ($d === 1 ? "" : "s") . " ago";
+    }
+    if ($diff < 2592000) {
+        $w = (int) floor($diff / 604800);
+        return $w . " week" . ($w === 1 ? "" : "s") . " ago";
+    }
+
+    return date("M j, Y", $ts);
+}
+
+/**
+ * Deadline urgency helper.
+ * Returns ['class' => string, 'label' => string, 'days' => int]
+ * class: deadline-overdue | deadline-urgent | deadline-warning | deadline-ok
+ */
+function get_deadline_info($deadline): array
+{
+    $ts = strtotime((string) $deadline . " 23:59:59");
+    if ($ts === false) {
+        return [
+            "class" => "deadline-ok",
+            "label" => (string) $deadline,
+            "days" => 0,
+        ];
+    }
+
+    $days = (int) floor(($ts - time()) / 86400);
+
+    if ($days < 0) {
+        $over = abs($days);
+        return [
+            "class" => "deadline-overdue",
+            "label" => $over === 1 ? "1 day overdue" : $over . " days overdue",
+            "days" => $days,
+        ];
+    }
+    if ($days === 0) {
+        return [
+            "class" => "deadline-urgent",
+            "label" => "Due today",
+            "days" => 0,
+        ];
+    }
+    if ($days === 1) {
+        return [
+            "class" => "deadline-urgent",
+            "label" => "Due tomorrow",
+            "days" => 1,
+        ];
+    }
+    if ($days <= 2) {
+        return [
+            "class" => "deadline-urgent",
+            "label" => "Due in " . $days . " days",
+            "days" => $days,
+        ];
+    }
+    if ($days <= 5) {
+        return [
+            "class" => "deadline-warning",
+            "label" => "Due in " . $days . " days",
+            "days" => $days,
+        ];
+    }
+
+    return [
+        "class" => "deadline-ok",
+        "label" => "Due in " . $days . " days",
+        "days" => $days,
+    ];
+}
+
 
 ?>

@@ -171,11 +171,19 @@ require_once "includes/header.php";
                                     2,
                                 ) ?>
                             </span>
-                            <span class="text-sm text-muted">
-                                Deadline: <?= date(
-                                    "M j, Y",
-                                    strtotime($task["deadline"]),
-                                ) ?>
+                            <?php $dl = get_deadline_info($task["deadline"]); ?>
+                            <span class="text-sm <?= $dl[
+                                "class"
+                            ] ?>" title="<?= htmlspecialchars(
+    date("M j, Y", strtotime($task["deadline"])),
+) ?>">
+                                <?= htmlspecialchars($dl["label"]) ?>
+                                <span class="text-muted" style="font-weight:400;">
+                                    (<?= date(
+                                        "M j, Y",
+                                        strtotime($task["deadline"]),
+                                    ) ?>)
+                                </span>
                             </span>
                         </div>
 
@@ -210,10 +218,16 @@ require_once "includes/header.php";
                                         ) ?>
                                     </span>
                                 </div>
-                                <span class="text-sm text-muted">
-                                    <?= date(
-                                        "M j",
+                                <span class="text-sm text-muted" title="<?= htmlspecialchars(
+                                    date(
+                                        "M j, Y g:i A",
                                         strtotime($bid["submitted_at"]),
+                                    ),
+                                ) ?>">
+                                    <?= htmlspecialchars(
+                                        format_relative_time(
+                                            $bid["submitted_at"],
+                                        ),
                                     ) ?>
                                 </span>
                             </div>

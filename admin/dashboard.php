@@ -141,10 +141,18 @@ require_once "../includes/header.php";
                                     "bid_count"
                                 ] ?></td>
                                 <td><span class="badge <?= $bc ?>"><?= $bl ?></span></td>
-                                <td class="text-sm text-muted"><?= date(
-                                    "M j, Y",
-                                    strtotime($task["created_at"]),
-                                ) ?></td>
+                                <td class="text-sm text-muted" title="<?= htmlspecialchars(
+                                    date(
+                                        "M j, Y",
+                                        strtotime($task["created_at"]),
+                                    ),
+                                ) ?>">
+                                    <?= htmlspecialchars(
+                                        format_relative_time(
+                                            $task["created_at"],
+                                        ),
+                                    ) ?>
+                                </td>
                             </tr>
                         <?php
                         endforeach; ?>

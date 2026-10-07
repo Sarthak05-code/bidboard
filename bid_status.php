@@ -75,7 +75,7 @@ require_once "includes/header.php";
 
         <?php
             // Map bid status to badge + message
-            
+            // Map bid status to badge + message
             elseif ($searched && empty($bids)): ?>
             <div class="empty-state">
                 <h3>No bids found</h3>
@@ -178,15 +178,19 @@ require_once "includes/header.php";
                         </div>
 
                         <!-- Client + deadline + budget -->
+                        <?php $dl = get_deadline_info($bid["task_deadline"]); ?>
                         <p class="text-sm text-muted mb-2">
                             Posted by <strong><?= htmlspecialchars(
                                 $bid["client_name"],
                             ) ?></strong>
                             &nbsp;&middot;&nbsp;
-                            Deadline: <?= date(
-                                "M j, Y",
-                                strtotime($bid["task_deadline"]),
-                            ) ?>
+                            <span class="<?= $dl[
+                                "class"
+                            ] ?>" title="<?= htmlspecialchars(
+    date("M j, Y", strtotime($bid["task_deadline"])),
+) ?>">
+                                <?= htmlspecialchars($dl["label"]) ?>
+                            </span>
                             &nbsp;&middot;&nbsp;
                             Task budget: Rs. <?= number_format(
                                 $bid["task_budget"],
@@ -213,10 +217,14 @@ require_once "includes/header.php";
                                 <!-- Status message -->
                                 <p class="text-sm text-muted"><?= $msg ?></p>
                             </div>
-                            <span class="text-sm text-muted">
-                                Submitted <?= date(
-                                    "M j, Y",
+                            <span class="text-sm text-muted" title="<?= htmlspecialchars(
+                                date(
+                                    "M j, Y g:i A",
                                     strtotime($bid["submitted_at"]),
+                                ),
+                            ) ?>">
+                                Submitted <?= htmlspecialchars(
+                                    format_relative_time($bid["submitted_at"]),
                                 ) ?>
                             </span>
                         </div>
