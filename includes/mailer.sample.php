@@ -64,11 +64,54 @@ function send_bid_notification(
     }
 }
 
-function send_account_disabled_notification(
+/**
+ *  - admin/clients.php
+ *  - includes/auth_client.php
+ */
+function send_account_status_notification(
     string $to_email,
     string $to_name,
-    string $status,
-) {
-    
+    bool $is_active,
+): bool {
+    $mail = new PHPMailer(true);
+    $safe_name = htmlspecialchars($to_name, ENT_QUOTES, "UTF-8");
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = "smtp.gmail.com";
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_EMAIL;
+        $mail->Password = SMTP_APP_PASSWORD;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        $mail->CharSet = "UTF-8";
+
+        $mail->setFrom(SMTP_EMAIL, "BidBoard");
+        $mail->addAddress($to_email, $to_name);
+        $mail->isHTML(true);
+
+        if ($is_active) {
+            $mail->Subject = "Your BidBoard account has been reactivated";
+            $mail->Body = "
+                <p>Hi {$safe_name},</p>
+                <p>Your account has been <strong style='color:#16a34a;'>reactivated</strong>. You can log in again.</p>
+                <p>— BidBoard Team</p>
+            ";
+        } else {
+            $mail->Subject = "Your BidBoard account has been deactivated";
+            $mail->Body = "
+                <p>Hi {$safe_name},</p>
+                <p>Your account has been <strong style='color:#dc2626;'>deactivated</strong> by an administrator, so you can no longer log in.</p>
+                <p>If you think this is a mistake, reply to this email to contact the BidBoard team.</p>
+                <p>— BidBoard Team</p>
+            ";
+        }
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email send failed: {$mail->ErrorInfo}");
+        return false;
+    }
 }
 ?>
