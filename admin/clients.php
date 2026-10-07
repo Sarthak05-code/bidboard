@@ -12,6 +12,9 @@ if (
     $_SERVER["REQUEST_METHOD"] === "POST" &&
     isset($_POST["toggle_client_id"])
 ) {
+    if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
+        die("Invalid CSRF token.");
+    }
     $cid = (int) $_POST["toggle_client_id"];
     $new_val = (int) $_POST["new_active"]; // 1 or 0
 
@@ -128,15 +131,21 @@ require_once "../includes/header.php";
                                               ]
                                                   ? "Deactivate"
                                                   : "Reactivate" ?> this client?')">
+
                                             <input type="hidden" name="toggle_client_id" value="<?= $client[
                                                 "id"
                                             ] ?>">
-                                            <!-- Flip the active state -->
+
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(
+                                                $_SESSION["csrf_token"],
+                                            ) ?>">
+
                                             <input type="hidden" name="new_active" value="<?= $client[
                                                 "is_active"
                                             ]
                                                 ? 0
                                                 : 1 ?>">
+
                                             <button type="submit"
                                                     class="btn btn-sm <?= $client[
                                                         "is_active"

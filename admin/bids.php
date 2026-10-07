@@ -9,6 +9,10 @@ unset($_SESSION["flash"]);
 
 // Handle single bid delete
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_bid_id"])) {
+    if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
+        die("Invalid CSRF token");
+    }
+
     $del_id = (int) $_POST["delete_bid_id"];
     $stmt = $conn->prepare("DELETE FROM bids WHERE id = ?");
     $stmt->bind_param("i", $del_id);
@@ -202,12 +206,14 @@ require_once "../includes/header.php";
                                         ) ?>
                                     </td>
                                     <td>
-                                        <form method="POST" action=""
-                                              onsubmit="return confirm('Delete this bid?')">
+                                        <form method="POST">
                                             <input type="hidden" name="delete_bid_id" value="<?= $bid[
                                                 "id"
                                             ] ?>">
-                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(
+                                                $_SESSION["csrf_token"],
+                                            ) ?>">
+                                            <button type="submit">Delete</button>
                                         </form>
                                     </td>
                                 </tr>
