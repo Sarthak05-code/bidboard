@@ -873,3 +873,48 @@ tbody tr:hover {
     cursor: not-allowed;
     pointer-events: none;
 }
+
+/* -- Context Bannker */
+.banner {
+    color: #ffffff;
+    text-align: center;
+    padding: 0.35rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.banner a {
+    color: #ffffff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.banner a:hover {
+    opacity: 0.9;
+}
+
+.banner-client {
+    background-color: var(--accent);
+}
+
+.banner-admin {
+    background-color: #7c3aed;
+}
+
+.banner-public {
+    background-color: var(--success);
+}
+
+.nav-profile-link {
+    padding: 0.4rem 0.5rem;
+    color: var(--muted) !important;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.nav-profile-link:hover {
+    color: var(--text) !important;
+}
