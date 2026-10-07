@@ -4,38 +4,58 @@ require_once __DIR__ . "/../vendor/autoload.php";
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-define("SMTP_EMAIL", "paste_your_real_email_here");
-define("SMTP_APP_PASSWORD", "paste_your_app_password_here"); // paste your 16-char Gmail App Password here (global only)
+// Load credentials safely from environment or fallback constants
+define("SMTP_EMAIL", getenv("SMTP_EMAIL") ?: "paste_your_real_email_here");
+define(
+    "SMTP_APP_PASSWORD",
+    getenv("SMTP_APP_PASSWORD") ?: "paste_your_app_password_here",
+);
 
-/*
-actions/accept_bid.php
-actions/reject_bid.php
-*/
+/**
+ * Factory function to instantiate and pre-configure PHPMailer.
+ * Prevents repeating SMTP configuration across multiple notification functions.
+ */
+function create_mailer(): PHPMailer
+{
+    $mail = new PHPMailer(true);
+
+    $mail->isSMTP();
+    $mail->Host = "smtp.gmail.com";
+    $mail->SMTPAuth = true;
+    $mail->Username = SMTP_EMAIL;
+    $mail->Password = SMTP_APP_PASSWORD;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = 587;
+    $mail->CharSet = "UTF-8";
+
+    $mail->setFrom(SMTP_EMAIL, "BidBoard");
+
+    return $mail;
+}
+
+/**
+ * Sends bid status notifications (Accepted / Rejected).
+ */
 function send_bid_notification(
     string $to_email,
     string $to_name,
     string $task_title,
     string $status,
 ): bool {
-    $mail = new PHPMailer(true);
-
-    // Escape user-supplied values before putting them in HTML
-    $safe_name = htmlspecialchars($to_name, ENT_QUOTES, "UTF-8");
-    $safe_title = htmlspecialchars($task_title, ENT_QUOTES, "UTF-8");
+    $safe_name = htmlspecialchars(
+        $to_name,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8",
+    );
+    $safe_title = htmlspecialchars(
+        $task_title,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8",
+    );
 
     try {
-        $mail->isSMTP();
-        $mail->Host = "smtp.gmail.com";
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_EMAIL;
-        $mail->Password = SMTP_APP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
-        $mail->CharSet = "UTF-8";
-
-        $mail->setFrom(SMTP_EMAIL, "BidBoard");
+        $mail = create_mailer();
         $mail->addAddress($to_email, $to_name);
-
         $mail->isHTML(true);
 
         if ($status === "accepted") {
@@ -46,6 +66,7 @@ function send_bid_notification(
                 <p>The client will be in touch with you soon.</p>
                 <p>— BidBoard</p>
             ";
+            $mail->AltBody = "Hi {$to_name},\n\nGreat news — your bid on \"{$task_title}\" has been accepted!\n\nThe client will be in touch with you soon.\n\n— BidBoard";
         } else {
             $mail->Subject = "Update on your bid — BidBoard";
             $mail->Body = "
@@ -54,39 +75,33 @@ function send_bid_notification(
                 <p>Don't worry — there are plenty of other tasks open on BidBoard. Keep bidding!</p>
                 <p>— BidBoard</p>
             ";
+            $mail->AltBody = "Hi {$to_name},\n\nThank you for bidding on \"{$task_title}\". Unfortunately, the client chose a different bid this time.\n\nDon't worry — there are plenty of other tasks open on BidBoard. Keep bidding!\n\n— BidBoard";
         }
 
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("Email send failed: {$mail->ErrorInfo}");
+        error_log("Email send failed (bid notification): {$mail->ErrorInfo}");
         return false;
     }
 }
 
 /**
- *  - admin/clients.php
- *  - includes/auth_client.php
+ * Sends account activation / deactivation notifications.
  */
 function send_account_status_notification(
     string $to_email,
     string $to_name,
     bool $is_active,
 ): bool {
-    $mail = new PHPMailer(true);
-    $safe_name = htmlspecialchars($to_name, ENT_QUOTES, "UTF-8");
+    $safe_name = htmlspecialchars(
+        $to_name,
+        ENT_QUOTES | ENT_SUBSTITUTE,
+        "UTF-8",
+    );
 
     try {
-        $mail->isSMTP();
-        $mail->Host = "smtp.gmail.com";
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_EMAIL;
-        $mail->Password = SMTP_APP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
-        $mail->CharSet = "UTF-8";
-
-        $mail->setFrom(SMTP_EMAIL, "BidBoard");
+        $mail = create_mailer();
         $mail->addAddress($to_email, $to_name);
         $mail->isHTML(true);
 
@@ -97,6 +112,7 @@ function send_account_status_notification(
                 <p>Your account has been <strong style='color:#16a34a;'>reactivated</strong>. You can log in again.</p>
                 <p>— BidBoard Team</p>
             ";
+            $mail->AltBody = "Hi {$to_name},\n\nYour account has been reactivated. You can log in again.\n\n— BidBoard Team";
         } else {
             $mail->Subject = "Your BidBoard account has been deactivated";
             $mail->Body = "
@@ -105,13 +121,15 @@ function send_account_status_notification(
                 <p>If you think this is a mistake, reply to this email to contact the BidBoard team.</p>
                 <p>— BidBoard Team</p>
             ";
+            $mail->AltBody = "Hi {$to_name},\n\nYour account has been deactivated by an administrator, so you can no longer log in.\n\nIf you think this is a mistake, reply to this email to contact the BidBoard team.\n\n— BidBoard Team";
         }
 
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("Email send failed: {$mail->ErrorInfo}");
+        error_log(
+            "Email send failed (account notification): {$mail->ErrorInfo}",
+        );
         return false;
     }
 }
-?>

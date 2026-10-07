@@ -2,7 +2,11 @@
 // Client login page
 
 session_name("bidboard_client"); // unique session for clients
-session_start();
+session_start([
+    "cookie_httponly" => true,
+    "cookie_samesite" => "Lax",
+    "cookie_secure" => isset($_SERVER["HTTPS"]),
+]);
 
 // Already logged in — skip to dashboard
 if (isset($_SESSION["client_id"])) {
@@ -18,11 +22,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
         die("Invalid CSRF token. Please go back and try again.");
     }
-    if (is_rate_limited("client_login", 5, 60) || is_ip_rate_limited("client_login" , 10 , 300)) {
-        $error = "Too many login attempt. Try again later";
+    if (
+        is_rate_limited("client_login", 5, 60) ||
+        is_ip_rate_limited("client_login", 10, 300)
+    ) {
+        $error = "Too many login attempts. Try again later.";
     } else {
         $email = trim($_POST["email"] ?? "");
-        // removal of trimmed password.
         $password = $_POST["password"] ?? "";
 
         if ($email === "" || $password === "") {
@@ -38,12 +44,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $client = $result->fetch_assoc();
             $stmt->close();
 
-            if (!$client) {
-                $error = "No account found with that email.";
+            // Unified verification check (Prevents account enumeration)
+            if (!$client || !password_verify($password, $client["password"])) {
+                $error = "Invalid email or password.";
             } elseif (!$client["is_active"]) {
                 $error = "Your account has been deactivated. Contact admin.";
-            } elseif (!password_verify($password, $client["password"])) {
-                $error = "Incorrect password.";
             } else {
                 // Login successful — store in session
                 unset($_SESSION["rate_limit"]["client_login"]);

@@ -31,12 +31,22 @@ if (empty($bids)) {
 // 2. Prepare temp directory
 $output_dir = str_replace("\\", "/", __DIR__ . "/uploads/temp/");
 if (!is_dir($output_dir)) {
-    mkdir($output_dir, 0777, true);
+    mkdir($output_dir, 0755, true);
 }
 
-$file_hash = md5($email . time());
+$file_hash = md5($email . microtime(true) . bin2hex(random_bytes(8)));
 $pdf_path = $output_dir . "bid_history_" . $file_hash . ".pdf";
 $json_path = $output_dir . "payload_" . $file_hash . ".json";
+
+// CHANGE #2: Shutdown function to guarantee temp file cleanup even if user cancels download
+register_shutdown_function(function () use ($json_path, $pdf_path) {
+    if (file_exists($json_path)) {
+        @unlink($json_path);
+    }
+    if (file_exists($pdf_path)) {
+        @unlink($pdf_path);
+    }
+});
 
 // 3. Format payload and write to temporary JSON file
 $payload = [
@@ -55,24 +65,28 @@ $payload = [
 
 file_put_contents($json_path, json_encode($payload, JSON_UNESCAPED_SLASHES));
 
-// 4. Invoke Rust executable with JSON file path
-$rust_bin = str_replace("\\", "/", __DIR__ . "/bin/bidboard-pdf.exe");
+// CHANGE #3: Dynamically resolve binary extension (.exe vs Linux executable)
+$is_windows = strtoupper(substr(PHP_OS, 0, 3)) === "WIN";
+$bin_name = $is_windows ? "bidboard-pdf.exe" : "bidboard-pdf";
+$rust_bin = str_replace("\\", "/", __DIR__ . "/bin/" . $bin_name);
 
 if (!file_exists($rust_bin)) {
-    @unlink($json_path);
     die("PDF generator binary not found at: " . htmlspecialchars($rust_bin));
 }
 
+// 4. Invoke Rust executable with JSON file path
 $cmd = escapeshellarg($rust_bin) . " " . escapeshellarg($json_path) . " 2>&1";
 exec($cmd, $output, $return_code);
-
-// Cleanup JSON temp file
-@unlink($json_path);
 
 // 5. Stream PDF to browser
 if ($return_code === 0 && file_exists($pdf_path)) {
     $mode = $_GET["mode"] ?? "preview"; // Default to preview mode
     $disposition = $mode === "download" ? "attachment" : "inline";
+
+    // CHANGE #4: Clear output buffer to discard any trailing whitespace/notices and prevent PDF corruption
+    if (ob_get_length()) {
+        ob_end_clean();
+    }
 
     header("Content-Type: application/pdf");
     header(
@@ -81,9 +95,9 @@ if ($return_code === 0 && file_exists($pdf_path)) {
             '; filename="BidBoard_History.pdf"',
     );
     header("Content-Length: " . filesize($pdf_path));
+    header("Cache-Control: private, max-age=0, must-revalidate");
 
     readfile($pdf_path);
-    @unlink($pdf_path); // Clean up generated PDF from temp folder
     exit();
 } else {
     echo "<h3>Error generating PDF report</h3>";

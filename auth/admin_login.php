@@ -3,7 +3,11 @@
 // Uses a separate session name to avoid conflicts with client session
 
 session_name("bidboard_admin"); // unique session for admin
-session_start();
+session_start([
+    "cookie_httponly" => true,
+    "cookie_samesite" => "Lax",
+    "cookie_secure" => isset($_SERVER["HTTPS"]),
+]);
 
 // If already logged in, go straight to dashboard
 if (isset($_SESSION["admin_id"])) {
@@ -25,10 +29,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         is_rate_limited("admin_login", 5, 60) ||
         is_ip_rate_limited("admin_login", 10, 300)
     ) {
-        $error = "Too many login attempt, Please wait a miniute and try again";
+        $error = "Too many login attempts. Please wait a minute and try again.";
     } else {
         $username = trim($_POST["username"] ?? ""); // get submitted username
-        // remove trim in password , as user may intentionally want a password with space.
         $password = $_POST["password"] ?? ""; // get submitted password
 
         if ($username === "" || $password === "") {
@@ -110,7 +113,5 @@ require_once "../includes/header.php";
         </form>
     </div>
 </div>
-
-
 
 <?php require_once "../includes/footer.php"; ?>
