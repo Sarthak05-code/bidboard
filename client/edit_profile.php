@@ -31,16 +31,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($name === "" || $email === "") {
         $error = "Name and email are required.";
     } elseif (!preg_match('/^[A-Za-z][A-Za-z\s]*$/', $name)) {
-        $error = "Name must start with letter and contain only letters";
+        $error = "Name must start with a letter and contain only letters.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Enter a valid email address.";
     } elseif ($email !== $client["email"] && !is_email_deliverable($email)) {
         $error =
-            "This email could not be verified, Please check for typos or enter a new email";
+            "This email could not be verified. Please check for typos or enter a new email.";
     } elseif ($current_raw === "") {
         $error = "Enter your current password to save changes.";
     } else {
-        // Verify the current password before allowing any change
+        // Verify current password before allowing changes
         $pass_stmt = $conn->prepare(
             "SELECT password FROM clients WHERE id = ?",
         );
@@ -52,7 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!password_verify($current_raw, $row["password"])) {
             $error = "Current password is incorrect.";
         } else {
-            // Check if new email is taken by another client
+            // Check if email is taken by another account
             $email_check = $conn->prepare(
                 "SELECT id FROM clients WHERE email = ? AND id != ?",
             );
@@ -64,14 +64,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($email_taken) {
                 $error = "That email is already used by another account.";
-            } elseif ($new_pass !== "" && strlen($new_pass) < 6) {
-                $error = "New password must be at least 6 characters.";
+            } elseif (
+                $new_pass !== "" &&
+                (strlen($new_pass) < 8 ||
+                    !preg_match("/[A-Z]/", $new_pass) ||
+                    !preg_match("/[a-z]/", $new_pass) ||
+                    !preg_match("/[0-9]/", $new_pass) ||
+                    !preg_match("/[^A-Za-z0-9]/", $new_pass))
+            ) {
+                $error =
+                    "New password must be at least 8 characters, with uppercase, lowercase, a number, and a special character.";
             } elseif ($new_pass !== "" && $new_pass !== $confirm) {
                 $error = "New passwords do not match.";
             } else {
-                // All good — build the update query
+                // Perform database update
                 if ($new_pass !== "") {
-                    // Update name, email, and password
                     $hashed = password_hash($new_pass, PASSWORD_BCRYPT);
                     $upd = $conn->prepare(
                         "UPDATE clients SET name = ?, email = ?, password = ? WHERE id = ?",
@@ -84,7 +91,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $client_id,
                     );
                 } else {
-                    // Update only name and email, leave password unchanged
                     $upd = $conn->prepare(
                         "UPDATE clients SET name = ?, email = ? WHERE id = ?",
                     );
@@ -92,11 +98,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 }
 
                 if ($upd->execute()) {
-                    // Update the session name so navbar reflects change
                     $_SESSION["client_name"] = $name;
                     $success = "Profile updated successfully.";
-
-                    // Refresh local $client var so the form shows updated values
                     $client["name"] = $name;
                     $client["email"] = $email;
                 } else {
@@ -161,9 +164,7 @@ require_once "../includes/header.php";
                             required>
                     </div>
 
-                    <!-- Divider for password section -->
-                    <div style="border-top:1px solid var(--border); margin:1.5rem 0 1.25rem;">
-                    </div>
+                    <div style="border-top:1px solid var(--border); margin:1.5rem 0 1.25rem;"></div>
                     <p class="text-sm text-muted" style="margin-bottom:1rem;">
                         Leave the new password fields blank if you don't want to change it.
                     </p>
@@ -176,7 +177,7 @@ require_once "../includes/header.php";
                             id="new_password"
                             name="new_password"
                             class="form-control"
-                            placeholder="Min. 6 characters"
+                            placeholder="Min. 8 characters, upper/lower/number/symbol"
                             autocomplete="new-password">
                     </div>
 
@@ -192,10 +193,9 @@ require_once "../includes/header.php";
                             autocomplete="new-password">
                     </div>
 
-                    <!-- Divider -->
                     <div style="border-top:1px solid var(--border); margin:1.5rem 0 1.25rem;"></div>
 
-                    <!-- Current password — always required to save -->
+                    <!-- Current password -->
                     <div class="form-group">
                         <label class="form-label" for="current_password">Current password</label>
                         <input
@@ -223,81 +223,114 @@ require_once "../includes/header.php";
 </div>
 
 <script>
-// Real-time name validation — must start with a letter, no leading numbers
-const nameInput = document.getElementById('name');
-const nameError = document.createElement('p');
-nameError.className = 'form-hint';
-nameError.style.color = 'var(--danger)';
-nameError.style.display = 'none';
-nameInput.insertAdjacentElement('afterend', nameError);
-
-nameInput.addEventListener('input', () => {
-    const namePattern = /^[A-Za-z][A-Za-z\s]*$/;
-    if (nameInput.value.length > 0 && !namePattern.test(nameInput.value)) {
-        nameError.textContent = 'Name must start with a letter and contain only letters.';
-        nameError.style.display = 'block';
-        nameInput.style.borderColor = 'var(--danger)';
-    } else {
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Real-time name validation
+    const nameInput = document.getElementById('name');
+    if (nameInput) {
+        const nameError = document.createElement('p');
+        nameError.className = 'form-hint';
+        nameError.style.color = 'var(--danger)';
         nameError.style.display = 'none';
-        nameInput.style.borderColor = '';
+        nameInput.insertAdjacentElement('afterend', nameError);
+
+        nameInput.addEventListener('input', () => {
+            const namePattern = /^[A-Za-z][A-Za-z\s]*$/;
+            if (nameInput.value.length > 0 && !namePattern.test(nameInput.value)) {
+                nameError.textContent = 'Name must start with a letter and contain only letters.';
+                nameError.style.display = 'block';
+                nameInput.style.borderColor = 'var(--danger)';
+            } else {
+                nameError.style.display = 'none';
+                nameInput.style.borderColor = '';
+            }
+        });
     }
-});
 
-// Real-time email validation
-const emailInput = document.getElementById('email');
-const emailError = document.createElement('p');
-emailError.className = 'form-hint';
-emailError.style.color = 'var(--danger)';
-emailError.style.display = 'none';
-emailInput.insertAdjacentElement('afterend', emailError);
-
-emailInput.addEventListener('input', () => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailInput.value.length > 0 && !emailPattern.test(emailInput.value)) {
-        emailError.textContent = 'Enter a valid email address.';
-        emailError.style.display = 'block';
-        emailInput.style.borderColor = 'var(--danger)';
-    } else {
+    // 2. Real-time email validation
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        const emailError = document.createElement('p');
+        emailError.className = 'form-hint';
+        emailError.style.color = 'var(--danger)';
         emailError.style.display = 'none';
-        emailInput.style.borderColor = '';
+        emailInput.insertAdjacentElement('afterend', emailError);
+
+        emailInput.addEventListener('input', () => {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailInput.value.length > 0 && !emailPattern.test(emailInput.value)) {
+                emailError.textContent = 'Enter a valid email address.';
+                emailError.style.display = 'block';
+                emailInput.style.borderColor = 'var(--danger)';
+            } else {
+                emailError.style.display = 'none';
+                emailInput.style.borderColor = '';
+            }
+        });
     }
-});
 
-// Real-time new password length validation (only if filled in)
-const newPasswordInput = document.getElementById('new_password');
-const newPasswordError = document.createElement('p');
-newPasswordError.className = 'form-hint';
-newPasswordError.style.color = 'var(--danger)';
-newPasswordError.style.display = 'none';
-newPasswordInput.insertAdjacentElement('afterend', newPasswordError);
+    // 3. New password & confirm password validation
+    const newPasswordInput = document.getElementById('new_password');
+    const confirmInput = document.getElementById('confirm');
 
-newPasswordInput.addEventListener('input', () => {
-    if (newPasswordInput.value.length > 0 && newPasswordInput.value.length < 6) {
-        newPasswordError.textContent = 'New password must be at least 6 characters.';
-        newPasswordError.style.display = 'block';
-        newPasswordInput.style.borderColor = 'var(--danger)';
-    } else {
+    if (newPasswordInput && confirmInput) {
+        const newPasswordError = document.createElement('p');
+        newPasswordError.className = 'form-hint';
+        newPasswordError.style.color = 'var(--danger)';
         newPasswordError.style.display = 'none';
-        newPasswordInput.style.borderColor = '';
-    }
-});
+        newPasswordInput.insertAdjacentElement('afterend', newPasswordError);
 
-// Real-time confirm new password match validation
-const confirmInput = document.getElementById('confirm');
-const confirmError = document.createElement('p');
-confirmError.className = 'form-hint';
-confirmError.style.color = 'var(--danger)';
-confirmError.style.display = 'none';
-confirmInput.insertAdjacentElement('afterend', confirmError);
-
-confirmInput.addEventListener('input', () => {
-    if (confirmInput.value.length > 0 && confirmInput.value !== newPasswordInput.value) {
-        confirmError.textContent = 'Passwords do not match.';
-        confirmError.style.display = 'block';
-        confirmInput.style.borderColor = 'var(--danger)';
-    } else {
+        const confirmError = document.createElement('p');
+        confirmError.className = 'form-hint';
+        confirmError.style.color = 'var(--danger)';
         confirmError.style.display = 'none';
-        confirmInput.style.borderColor = '';
+        confirmInput.insertAdjacentElement('afterend', confirmError);
+
+        function isStrongPassword(pass) {
+            return pass.length >= 8 &&
+                /[A-Z]/.test(pass) &&
+                /[a-z]/.test(pass) &&
+                /[0-9]/.test(pass) &&
+                /[^A-Za-z0-9]/.test(pass);
+        }
+
+        function validateNewPassword() {
+            const pass = newPasswordInput.value;
+            const requirements = [];
+
+            if (pass.length < 8) requirements.push('at least 8 characters');
+            if (!/[A-Z]/.test(pass)) requirements.push('an uppercase letter');
+            if (!/[a-z]/.test(pass)) requirements.push('a lowercase letter');
+            if (!/[0-9]/.test(pass)) requirements.push('a number');
+            if (!/[^A-Za-z0-9]/.test(pass)) requirements.push('a special character');
+
+            if (pass.length === 0 || isStrongPassword(pass)) {
+                newPasswordError.style.display = 'none';
+                newPasswordInput.style.borderColor = '';
+            } else {
+                newPasswordError.textContent = 'New password must contain ' + requirements.join(', ') + '.';
+                newPasswordError.style.display = 'block';
+                newPasswordInput.style.borderColor = 'var(--danger)';
+            }
+
+            validateConfirmPassword();
+        }
+
+        function validateConfirmPassword() {
+            if (confirmInput.value.length === 0) {
+                confirmError.style.display = 'none';
+                confirmInput.style.borderColor = '';
+            } else if (confirmInput.value !== newPasswordInput.value) {
+                confirmError.textContent = 'New passwords do not match.';
+                confirmError.style.display = 'block';
+                confirmInput.style.borderColor = 'var(--danger)';
+            } else {
+                confirmError.style.display = 'none';
+                confirmError.style.borderColor = '';
+            }
+        }
+
+        newPasswordInput.addEventListener('input', validateNewPassword);
+        confirmInput.addEventListener('input', validateConfirmPassword);
     }
 });
 </script>

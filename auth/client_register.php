@@ -35,8 +35,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (!is_email_deliverable($email)) {
         $error =
             "This email address could not be verified, Please check for typos or use a different email.";
-    } elseif (strlen($password) < 6) {
-        $error = "Password must be at least 6 characters.";
+    } elseif (strlen($password) < 8) {
+        $error = "Password must be at least 8 characters.";
+    } elseif (!preg_match("/[A-Z]/", $password)) {
+        $error = "Password must contain at least one uppercase letter. ";
+    } elseif (!preg_match("/[a-z]/", $password)) {
+        $error = "Password must contain atleast one lowercase letter.";
+    } elseif (!preg_match("/[0-9]/", $password)) {
+        $error = "Password must contain atleast one number";
+    } elseif (!preg_match("/[^A-Za-z0-9]/", $password)) {
+        $error = "Password must contains atleast one special character.";
     } elseif ($password !== $confirm) {
         $error = "Passwords do not match.";
     } else {
@@ -92,6 +100,7 @@ require_once "../includes/header.php";
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(
                 generate_csrf_token(),
             ) ?>">
+
             <div class="form-group">
                 <label class="form-label" for="name">Full name</label>
                 <input
@@ -123,8 +132,9 @@ require_once "../includes/header.php";
                     id="password"
                     name="password"
                     class="form-control"
-                    placeholder="Min. 6 characters"
+                    placeholder="Create a strong password."
                     required>
+                <p class="form-hint">At least 8 characters, including uppercase, lowercase, a number, and a special character.</p>
             </div>
 
             <div class="form-group">
@@ -151,81 +161,114 @@ require_once "../includes/header.php";
 </div>
 
 <script>
-// Real-time name validation — must start with a letter, no leading numbers
-const nameInput = document.getElementById('name');
-const nameError = document.createElement('p');
-nameError.className = 'form-hint';
-nameError.style.color = 'var(--danger)';
-nameError.style.display = 'none';
-nameInput.insertAdjacentElement('afterend', nameError);
-
-nameInput.addEventListener('input', () => {
-    const namePattern = /^[A-Za-z][A-Za-z\s]*$/;
-    if (nameInput.value.length > 0 && !namePattern.test(nameInput.value)) {
-        nameError.textContent = 'Name must start with a letter and contain only letters.';
-        nameError.style.display = 'block';
-        nameInput.style.borderColor = 'var(--danger)';
-    } else {
+document.addEventListener('DOMContentLoaded', () => {
+    // Real-time name validation — must start with a letter, no leading numbers
+    const nameInput = document.getElementById('name');
+    if (nameInput) {
+        const nameError = document.createElement('p');
+        nameError.className = 'form-hint';
+        nameError.style.color = 'var(--danger)';
         nameError.style.display = 'none';
-        nameInput.style.borderColor = '';
+        nameInput.insertAdjacentElement('afterend', nameError);
+
+        nameInput.addEventListener('input', () => {
+            const namePattern = /^[A-Za-z][A-Za-z\s]*$/;
+            if (nameInput.value.length > 0 && !namePattern.test(nameInput.value)) {
+                nameError.textContent = 'Name must start with a letter and contain only letters.';
+                nameError.style.display = 'block';
+                nameInput.style.borderColor = 'var(--danger)';
+            } else {
+                nameError.style.display = 'none';
+                nameInput.style.borderColor = '';
+            }
+        });
     }
-});
 
-// Real-time email validation
-const emailInput = document.getElementById('email');
-const emailError = document.createElement('p');
-emailError.className = 'form-hint';
-emailError.style.color = 'var(--danger)';
-emailError.style.display = 'none';
-emailInput.insertAdjacentElement('afterend', emailError);
-
-emailInput.addEventListener('input', () => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailInput.value.length > 0 && !emailPattern.test(emailInput.value)) {
-        emailError.textContent = 'Enter a valid email address.';
-        emailError.style.display = 'block';
-        emailInput.style.borderColor = 'var(--danger)';
-    } else {
+    // Real-time email validation
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        const emailError = document.createElement('p');
+        emailError.className = 'form-hint';
+        emailError.style.color = 'var(--danger)';
         emailError.style.display = 'none';
-        emailInput.style.borderColor = '';
+        emailInput.insertAdjacentElement('afterend', emailError);
+
+        emailInput.addEventListener('input', () => {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailInput.value.length > 0 && !emailPattern.test(emailInput.value)) {
+                emailError.textContent = 'Enter a valid email address.';
+                emailError.style.display = 'block';
+                emailInput.style.borderColor = 'var(--danger)';
+            } else {
+                emailError.style.display = 'none';
+                emailInput.style.borderColor = '';
+            }
+        });
     }
-});
 
-// Real-time password length validation
-const passwordInput = document.getElementById('password');
-const passwordError = document.createElement('p');
-passwordError.className = 'form-hint';
-passwordError.style.color = 'var(--danger)';
-passwordError.style.display = 'none';
-passwordInput.insertAdjacentElement('afterend', passwordError);
+    // Real-time strong password validation
+    const passwordInput = document.getElementById('password');
+    const confirmInput = document.getElementById('confirm');
 
-passwordInput.addEventListener('input', () => {
-    if (passwordInput.value.length > 0 && passwordInput.value.length < 6) {
-        passwordError.textContent = 'Password must be at least 6 characters.';
-        passwordError.style.display = 'block';
-        passwordInput.style.borderColor = 'var(--danger)';
-    } else {
+    if (passwordInput && confirmInput) {
+        const passwordError = document.createElement('p');
+        passwordError.className = 'form-hint';
+        passwordError.style.color = 'var(--danger)';
         passwordError.style.display = 'none';
-        passwordInput.style.borderColor = '';
-    }
-});
+        passwordInput.insertAdjacentElement('afterend', passwordError);
 
-// Real-time confirm password match validation
-const confirmInput = document.getElementById('confirm');
-const confirmError = document.createElement('p');
-confirmError.className = 'form-hint';
-confirmError.style.color = 'var(--danger)';
-confirmError.style.display = 'none';
-confirmInput.insertAdjacentElement('afterend', confirmError);
-
-confirmInput.addEventListener('input', () => {
-    if (confirmInput.value.length > 0 && confirmInput.value !== passwordInput.value) {
-        confirmError.textContent = 'Passwords do not match.';
-        confirmError.style.display = 'block';
-        confirmInput.style.borderColor = 'var(--danger)';
-    } else {
+        const confirmError = document.createElement('p');
+        confirmError.className = 'form-hint';
+        confirmError.style.color = 'var(--danger)';
         confirmError.style.display = 'none';
-        confirmInput.style.borderColor = '';
+        confirmInput.insertAdjacentElement('afterend', confirmError);
+
+        function isStrongPassword(password) {
+            return password.length >= 8 &&
+                /[A-Z]/.test(password) &&
+                /[a-z]/.test(password) &&
+                /[0-9]/.test(password) &&
+                /[^A-Za-z0-9]/.test(password);
+        }
+
+        function validatePassword() {
+            const password = passwordInput.value;
+            const requirements = [];
+
+            if (password.length < 8) requirements.push('at least 8 characters');
+            if (!/[A-Z]/.test(password)) requirements.push('an uppercase letter');
+            if (!/[a-z]/.test(password)) requirements.push('a lowercase letter');
+            if (!/[0-9]/.test(password)) requirements.push('a number');
+            if (!/[^A-Za-z0-9]/.test(password)) requirements.push('a special character');
+
+            if (password.length === 0 || isStrongPassword(password)) {
+                passwordError.style.display = 'none';
+                passwordInput.style.borderColor = '';
+            } else {
+                passwordError.textContent = 'Password must contain ' + requirements.join(', ') + '.';
+                passwordError.style.display = 'block';
+                passwordInput.style.borderColor = 'var(--danger)';
+            }
+
+            validateConfirmPassword();
+        }
+
+        function validateConfirmPassword() {
+            if (confirmInput.value.length === 0) {
+                confirmError.style.display = 'none';
+                confirmInput.style.borderColor = '';
+            } else if (confirmInput.value !== passwordInput.value) {
+                confirmError.textContent = 'Passwords do not match.';
+                confirmError.style.display = 'block';
+                confirmInput.style.borderColor = 'var(--danger)';
+            } else {
+                confirmError.style.display = 'none';
+                confirmError.style.borderColor = '';
+            }
+        }
+
+        passwordInput.addEventListener('input', validatePassword);
+        confirmInput.addEventListener('input', validateConfirmPassword);
     }
 });
 </script>

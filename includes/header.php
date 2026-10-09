@@ -21,15 +21,15 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 // 3. Disable unwanted browser features (camera, microphone, geolocation)
 header("Permissions-Policy: camera=(), microphone=(), geolocation=()");
 
-// 4. Content Security Policy (Replaces X-Frame-Options and X-XSS-Protection)
-// Allows self-hosted assets + Google Fonts (Inter)
+// 4. Content Security Policy
+// Allows self-hosted assets, Google Fonts, and inline scripts/styles for UI components
 $csp = implode("; ", [
     "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'", // 'unsafe-inline' needed if using inline style="" attrs
+    "script-src 'self' 'unsafe-inline'", // Added 'unsafe-inline' to allow inline JS scripts
+    "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
-    "frame-ancestors 'none'", // Replaces X-Frame-Options: DENY
+    "frame-ancestors 'none'", // Prevents clickjacking
     "form-action 'self'",
     "base-uri 'self'",
 ]);
