@@ -19,23 +19,23 @@ The core web application uses no PHP framework. PDF report rendering is delegate
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Web backend | Vanilla PHP (no web framework) |
-| System utilities | Rust CLI binaries for document and other heavy system tasks |
-| PDF engine | Rust with Chromium via the `headless_chrome` crate |
-| Database | MySQL, managed with phpMyAdmin |
-| Frontend | HTML, CSS, and vanilla JavaScript (AJAX via Fetch) |
-| Server | Apache and MySQL through XAMPP |
-| Email verification | Abstract API Email Reputation endpoint |
-| Email notifications | PHPMailer (Composer) with Gmail SMTP |
+| Layer               | Technology                                                  |
+| ------------------- | ----------------------------------------------------------- |
+| Web backend         | Vanilla PHP (no web framework)                              |
+| System utilities    | Rust CLI binaries for document and other heavy system tasks |
+| PDF engine          | Rust with Chromium via the `headless_chrome` crate          |
+| Database            | MySQL, managed with phpMyAdmin                              |
+| Frontend            | HTML, CSS, and vanilla JavaScript (AJAX via Fetch)          |
+| Server              | Apache and MySQL through XAMPP                              |
+| Email verification  | Abstract API Email Reputation endpoint                      |
+| Email notifications | PHPMailer (Composer) with Gmail SMTP                        |
 
 ## Roles
 
-| Role | Access |
-| --- | --- |
-| **Admin** | View and delete tasks and bids, manage clients, and review reports. |
-| **Client** | Register, post tasks, view bids, accept or reject bids, mark tasks complete, and report bids. |
+| Role           | Access                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**      | View and delete tasks and bids, manage clients, and review reports.                                                             |
+| **Client**     | Register, post tasks, view bids, accept or reject bids, mark tasks complete, and report bids.                                   |
 | **Freelancer** | Browse tasks, submit bids, check bid status by email, preview and download styled Rust-generated PDF reports, and report tasks. |
 
 ## Getting started
@@ -186,12 +186,14 @@ bidboard/
 
 ## Security
 
-- CSRF tokens are validated on state-changing endpoints.
-- Sessions are regenerated on authentication and isolated by role.
-- Login and bid actions are rate-limited using IP/session checks.
-- SQL queries use parameterized MySQLi prepared statements.
-- Temporary JSON payload files isolate PHP-to-Rust data transfer and avoid Windows shell-argument escaping issues.
-- Security headers and secure session-cookie handling are included.
+- CSRF tokens are validated on all state-changing endpoints.
+- Sessions are regenerated on authentication and strictly isolated by role (`bidboard_client`, `bidboard_admin`).
+- Rate limiting protects login and bid endpoints against brute-force attacks via session/IP tracking.
+- Password hashing uses `password_hash()` with `PASSWORD_BCRYPT`.
+- Enforced strict password policy across registration and profile updates (minimum 8 characters, requiring uppercase, lowercase, digit, and special character).
+- All SQL queries use parameterized MySQLi prepared statements to prevent SQL injection.
+- Temporary JSON payload files isolate PHP-to-Rust data transfer to prevent command/shell-argument escaping vulnerabilities on Windows.
+- Security headers (`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and `Content-Security-Policy`) safeguard against MIME sniffing, clickjacking, and XSS.
 
 ## Known issues and areas to watch
 
@@ -209,18 +211,19 @@ Internal links assume the project is located at `C:\xampp\htdocs\bidboard\` and 
 
 ## Changelog
 
-| Version | Changes |
-| --- | --- |
-| **v1** | Core platform: authentication, task posting, bid submission, and admin panel. |
-| **v2** | Duplicate bid prevention, admin search, and client profile editing. |
-| **v3** | Freelancer bid history, client task editing, and context bar. |
-| **v4** | CSRF protection, session regeneration, real-time validation, and Abstract API email verification. |
-| **v5** | Task and bid reporting, admin report review panel, and session isolation fix. |
-| **v6** | Pagination for admin tasks and public homepage, CSRF protection for admin deletion, and filter preservation. |
-| **v7** | Rate limiting, security headers, logout session-cookie fix, negative-value prevention, and Rs. currency display. |
-| **v8** | PHPMailer notifications for accepted and rejected bids, plus `AGENTS.md` guardrails. |
-| **v9** | CSS refactoring, AJAX search and pagination, and stricter letter/title validation. |
-| **v10** | Rust PDF integration with `headless_chrome`, HTML/CSS template engine, preview/download handlers, and auto-reject email cascade. |
+| Version | Changes                                                                                                                                                           |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v1**  | Core platform: authentication, task posting, bid submission, and admin panel.                                                                                     |
+| **v2**  | Duplicate bid prevention, admin search, and client profile editing.                                                                                               |
+| **v3**  | Freelancer bid history, client task editing, and context bar.                                                                                                     |
+| **v4**  | CSRF protection, session regeneration, real-time validation, and Abstract API email verification.                                                                 |
+| **v5**  | Task and bid reporting, admin report review panel, and session isolation fix.                                                                                     |
+| **v6**  | Pagination for admin tasks and public homepage, CSRF protection for admin deletion, and filter preservation.                                                      |
+| **v7**  | Rate limiting, security headers, logout session-cookie fix, negative-value prevention, and Rs. currency display.                                                  |
+| **v8**  | PHPMailer notifications for accepted and rejected bids, plus `AGENTS.md` guardrails.                                                                              |
+| **v9**  | CSS refactoring, AJAX search and pagination, and stricter letter/title validation.                                                                                |
+| **v10** | Rust PDF integration with `headless_chrome`, HTML/CSS template engine, preview/download handlers, and auto-reject email cascade.                                  |
+| **v11** | Enforced strict multi-rule password policy (8+ chars, upper/lower/number/symbol), client/server password synchronization, and CSP script directive optimizations. |
 
 ## Author
 
